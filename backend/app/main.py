@@ -4,6 +4,9 @@ from app.config import settings
 from app.database import engine
 from app.models.base import Base
 
+from app.routers import analytics_router, imports_router
+
+
 app = FastAPI(title=settings.app_name)
 
 
@@ -20,3 +23,8 @@ def health_check() -> dict[str, str]:
 @app.get(f"{settings.api_prefix}/health")
 def api_health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+app.include_router(imports_router)
+app.include_router(analytics_router)
+

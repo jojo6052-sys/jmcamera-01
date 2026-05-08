@@ -49,3 +49,16 @@ PYTHONPATH=. pytest -q
 ```
 
 > 注意: PostgreSQL/Redis連携やAlembicの実DB適用は Docker またはローカルDB が必要です。
+
+
+## Phase 1 - PR2 追加機能
+- `POST /api/import/products`: CSVから`products`へ取り込み
+- `GET /api/analytics/best-sellers`: 商品別の販売件数・売上・利益・利益率・平均販売日数
+- `GET /api/analytics/categories`: カテゴリ別の売上・利益・利益率・回転日数
+- Frontendは Product Analytics テーブルをAPI連携で表示
+
+### CSVサンプルヘッダー
+```csv
+es_number,title,normalized_title,brand,model,category,mount,condition_rank,purchase_price_jpy,sale_price_usd,sale_price_jpy,gross_profit_jpy,final_profit_jpy,profit_margin,purchased_at,listed_at,sold_at,days_to_sell,sales_channel,buyer_country,returned,complaint,repair_required,seller_id,source_platform,source_url,notes
+```
+
