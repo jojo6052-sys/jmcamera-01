@@ -7,4 +7,5 @@ export default function App() {
       <ProductAnalyticsPage />
     </div>
   )
+
 }

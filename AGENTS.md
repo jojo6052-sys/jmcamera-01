@@ -70,6 +70,79 @@
 ```bash
 cp .env.example .env
 docker compose up -d --build
+
+```
+
+### Backend
+```bash
+docker compose exec backend pytest -q
+docker compose exec backend python -m compileall app
+```
+
+### Frontend
+```bash
+docker compose exec frontend npm run build
+```
+
+### Health Check（jmcamera-01は8001）
+```bash
+curl -i http://localhost:8001/health
+curl -i http://localhost:8001/api/health
+```
+
+---
+
+## Docker / ポート方針
+- backend container内部ポート: `8000`
+- host公開ポート: `8001:8000`
+- frontend: `5173`
+- 他プロジェクトとの競合回避を優先する
+
+---
+
+## PRテンプレ（必須）
+PR本文は以下の順で記載:
+1. 目的（Why）
+2. 変更内容（What）
+3. テスト結果（How verified）
+4. 既知の制約 / 次PR課題（Follow-up）
+
+---
+
+## マージ前チェックリスト（必須）
+- [ ] `git status` が clean
+- [ ] `git diff --check` が空
+- [ ] backendテスト通過
+- [ ] frontend build成功
+- [ ] `/health` と `/api/health` が 200
+- [ ] README更新（必要時）
+- [ ] コンフリクトマーカーなし
+- [ ] `.env` や秘密情報が差分に含まれていない
+
+---
+
+## Phase 1 実装優先順
+1. CSVインポート
+2. 分析API/画面
+3. Yahoo候補取得と保存
+4. 推薦スコア
+5. フィードバック保存
+
+---
+
+## Yahoo取得の注意（MVP）
+- 過剰アクセス禁止（ランダム待機）
+- 失敗時もAPIを落とさない
+- ログイン必須情報は扱わない
+- スクレイピング実装はサービス層へ分離（将来差し替え可能）
+
+---
+
+## セキュリティ注意
+- PATは会話/コード/ログに貼らない
+- `.env` はコミット禁止
+- 外部入力は必ずバリデーションする
+
 Backend
 docker compose exec backend pytest -q
 docker compose exec backend python -m compileall app
