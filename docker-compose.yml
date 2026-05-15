@@ -6,6 +6,7 @@ services:
     volumes:
       - ./backend:/app
     ports:
+      - "8001:8000"
 
       - "8001:8000"
 
