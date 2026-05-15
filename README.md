@@ -18,6 +18,7 @@
 ## セットアップ
 ```bash
 cp .env.example .env
+
 docker compose up --build
 ```
 
@@ -66,3 +67,4 @@ es_number,title,normalized_title,brand,model,category,mount,condition_rank,purch
 - `POST /api/yahoo/search`（MVPでは安全なダミー候補生成で保存、後続PRでスクレイパ差し替え）
 - `GET /api/candidates`
 - `GET /api/candidates/{id}`
+
