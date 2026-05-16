@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.config import settings
 from app.database import engine
 from app.models.base import Base
+from app.routers import analytics_router, candidates_router, feedbacks_router, imports_router, search_keywords_router, yahoo_router
 from app.routers import analytics_router, candidates_router, imports_router, search_keywords_router, yahoo_router
 
 app = FastAPI(title=settings.app_name)
@@ -27,5 +28,8 @@ app.include_router(imports_router)
 app.include_router(analytics_router)
 app.include_router(search_keywords_router)
 app.include_router(yahoo_router)
+app.include_router(candidates_router)
+
+app.include_router(feedbacks_router)
 
 app.include_router(candidates_router)
