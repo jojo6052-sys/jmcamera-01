@@ -7,6 +7,8 @@ from app.models.yahoo_candidate import YahooAuctionCandidate
 from app.schemas.candidates import CandidateRead
 from app.schemas.scores import RecommendationScoreRead
 from app.services.scoring import compute_recommendation
+from app.models.yahoo_candidate import YahooAuctionCandidate
+from app.schemas.candidates import CandidateRead
 
 router = APIRouter(prefix='/api/candidates', tags=['candidates'])
 
