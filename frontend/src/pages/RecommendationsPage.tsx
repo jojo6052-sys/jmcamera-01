@@ -1,20 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { apiGet, apiPost } from '../api/client'
 import type { Candidate, FeedbackRequest, RecommendationScore } from '../types/candidates'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+
+type RankFilter = '' | 'A' | 'B' | 'C'
+
 export default function RecommendationsPage() {
   const [keyword, setKeyword] = useState('')
+  const [rank, setRank] = useState<RankFilter>('')
+  const [minScore, setMinScore] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [scores, setScores] = useState<Record<number, RecommendationScore>>({})
 
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams()
+    if (keyword.trim()) params.set('keyword', keyword.trim())
+    if (rank) params.set('rank', rank)
+    if (minScore.trim()) params.set('min_score', minScore.trim())
+    if (maxPrice.trim()) params.set('max_price', maxPrice.trim())
+    const query = params.toString()
+    return query ? `?${query}` : ''
+  }, [keyword, rank, minScore, maxPrice])
+
   async function loadCandidates() {
     setLoading(true)
     setError('')
     try {
-      const query = keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''
-      const data = await apiGet<Candidate[]>(`/api/candidates${query}`)
+      const data = await apiGet<Candidate[]>(`/api/candidates${queryString}`)
       setCandidates(data)
     } catch {
       setError('候補一覧の取得に失敗しました')
@@ -38,16 +55,60 @@ export default function RecommendationsPage() {
     await loadCandidates()
   }
 
+  const exportUrl = `${API_BASE_URL}/api/candidates/export.csv${queryString}`
+
   return (
     <div className="space-y-4">
-      <div className="bg-white p-4 rounded shadow flex items-center gap-2">
-        <input
-          className="border rounded px-3 py-2 w-96"
-          placeholder="keyword filter"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-        />
-        <button className="px-3 py-2 bg-slate-800 text-white rounded" onClick={loadCandidates}>検索</button>
+      <div className="bg-white p-4 rounded shadow space-y-3">
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <div className="text-xs text-slate-600 mb-1">キーワード</div>
+            <input
+              className="border rounded px-3 py-2 w-64"
+              placeholder="例: Canon EOS"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-600 mb-1">ランク</div>
+            <select className="border rounded px-3 py-2 w-24" value={rank} onChange={(e) => setRank(e.target.value as RankFilter)}>
+              <option value="">All</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+            </select>
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-600 mb-1">最小スコア</div>
+            <input
+              className="border rounded px-3 py-2 w-28"
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={minScore}
+              onChange={(e) => setMinScore(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-600 mb-1">上限価格</div>
+            <input
+              className="border rounded px-3 py-2 w-32"
+              type="number"
+              min="0"
+              step="1"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+            />
+          </div>
+
+          <button className="px-3 py-2 bg-slate-800 text-white rounded" onClick={loadCandidates}>検索</button>
+          <a className="px-3 py-2 bg-emerald-700 text-white rounded" href={exportUrl}>CSV出力</a>
+        </div>
       </div>
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
