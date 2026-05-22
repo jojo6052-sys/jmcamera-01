@@ -1,10 +1,14 @@
 from datetime import datetime
-from pydantic import BaseModel
+
+from pydantic import BaseModel, Field
 
 
 class YahooSearchRequest(BaseModel):
     keyword: str
     limit: int = 20
+    min_price: int | None = Field(default=None, ge=0)
+    max_price: int | None = Field(default=None, ge=0)
+    exclude_words: list[str] = Field(default_factory=list)
 
 
 class CandidateRead(BaseModel):

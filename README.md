@@ -73,3 +73,6 @@ es_number,title,normalized_title,brand,model,category,mount,condition_rank,purch
 
 - `POST /api/candidates/{id}/score`: 推薦スコアを再計算して保存
 - `GET /api/candidates` は `rank` / `min_score` フィルタに対応
+
+- `GET /api/candidates/export.csv`: 候補一覧をCSVダウンロード（既存フィルタ適用）
+- `POST /api/yahoo/search` は `min_price` / `max_price` / `exclude_words` に対応

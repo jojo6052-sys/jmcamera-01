@@ -5,7 +5,6 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
 from uuid import uuid4
 
 import requests
@@ -37,39 +36,50 @@ class YahooCandidatePayload:
     status: str = "new"
 
 
-def fetch_yahoo_candidates(keyword: str, limit: int = 20) -> list[YahooCandidatePayload]:
-    """Fetch Yahoo auction search results with a safe fallback.
-
-    If Yahoo parsing fails or returns no rows, this returns deterministic MVP-safe
-    sample candidates so the API never crashes.
-    """
+def fetch_yahoo_candidates(
+    keyword: str,
+    limit: int = 20,
+    min_price: int | None = None,
+    max_price: int | None = None,
+    exclude_words: list[str] | None = None,
+) -> list[YahooCandidatePayload]:
+    """Fetch Yahoo auction search results with safe fallback and basic filtering."""
 
     sanitized = sanitize_keyword(keyword)
     capped_limit = max(1, min(limit, 50))
+    exclude_words = [w.strip().lower() for w in (exclude_words or []) if w.strip()]
 
     # polite random wait
     time.sleep(random.uniform(0.2, 0.8))
 
     try:
-        html = _search_html(sanitized)
+        html = _search_html(sanitized, min_price=min_price, max_price=max_price)
         parsed = _parse_candidates(html, sanitized, capped_limit)
-        if parsed:
-            return parsed
+        filtered = _filter_candidates(parsed, min_price=min_price, max_price=max_price, exclude_words=exclude_words)
+        if filtered:
+            return filtered[:capped_limit]
     except Exception:
         # fall through to stable fallback output
         pass
 
-    return _fallback_candidates(sanitized, capped_limit)
+    fallback = _fallback_candidates(sanitized, capped_limit)
+    return _filter_candidates(fallback, min_price=min_price, max_price=max_price, exclude_words=exclude_words)[:capped_limit]
 
 
 def sanitize_keyword(keyword: str) -> str:
     return re.sub(r"\s+", " ", keyword).strip()
 
 
-def _search_html(keyword: str) -> str:
+def _search_html(keyword: str, min_price: int | None = None, max_price: int | None = None) -> str:
+    params: dict[str, str | int] = {"p": keyword}
+    if min_price is not None:
+        params["aucminprice"] = min_price
+    if max_price is not None:
+        params["aucmaxprice"] = max_price
+
     response = requests.get(
         YAHOO_SEARCH_URL,
-        params={"p": keyword},
+        params=params,
         headers={"User-Agent": USER_AGENT},
         timeout=10,
     )
@@ -159,3 +169,25 @@ def _fallback_candidates(keyword: str, limit: int) -> list[YahooCandidatePayload
             )
         )
     return rows
+
+
+def _filter_candidates(
+    rows: list[YahooCandidatePayload],
+    min_price: int | None,
+    max_price: int | None,
+    exclude_words: list[str],
+) -> list[YahooCandidatePayload]:
+    results: list[YahooCandidatePayload] = []
+    for row in rows:
+        price = row.current_price_jpy
+        if min_price is not None and price is not None and price < min_price:
+            continue
+        if max_price is not None and price is not None and price > max_price:
+            continue
+
+        title_l = row.title.lower()
+        if any(w in title_l for w in exclude_words):
+            continue
+
+        results.append(row)
+    return results

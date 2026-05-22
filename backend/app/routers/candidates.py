@@ -1,4 +1,8 @@
+import csv
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -39,6 +43,48 @@ def list_candidates(
             q = q.filter(RecommendationScore.total_score >= min_score)
 
     return q.order_by(YahooAuctionCandidate.created_at.desc()).limit(200).all()
+
+
+@router.get('/export.csv')
+def export_candidates_csv(
+    db: Session = Depends(get_db),
+    keyword: str | None = None,
+    rank: str | None = None,
+    min_score: float | None = Query(default=None),
+    max_price: float | None = Query(default=None),
+    seller_id: str | None = None,
+    status: str | None = None,
+):
+    rows = list_candidates(db, keyword=keyword, rank=rank, min_score=min_score, max_price=max_price, seller_id=seller_id, status=status)
+
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow([
+        'id', 'auction_id', 'title', 'url', 'current_price_jpy', 'buyout_price_jpy',
+        'bid_count', 'end_time', 'seller_id', 'seller_rating', 'search_keyword', 'status',
+    ])
+    for c in rows:
+        writer.writerow([
+            c.id,
+            c.auction_id,
+            c.title,
+            c.url,
+            c.current_price_jpy,
+            c.buyout_price_jpy,
+            c.bid_count,
+            c.end_time,
+            c.seller_id,
+            c.seller_rating,
+            c.search_keyword,
+            c.status,
+        ])
+
+    out.seek(0)
+    return StreamingResponse(
+        iter([out.getvalue()]),
+        media_type='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=candidates.csv'},
+    )
 
 
 @router.get('/{candidate_id}', response_model=CandidateRead)

@@ -13,7 +13,13 @@ router = APIRouter(prefix='/api/yahoo', tags=['yahoo'])
 
 @router.post('/search', response_model=list[CandidateRead])
 def yahoo_search(payload: YahooSearchRequest, db: Session = Depends(get_db)):
-    rows = fetch_yahoo_candidates(payload.keyword, payload.limit)
+    rows = fetch_yahoo_candidates(
+        payload.keyword,
+        payload.limit,
+        min_price=payload.min_price,
+        max_price=payload.max_price,
+        exclude_words=payload.exclude_words,
+    )
 
     entities: list[YahooAuctionCandidate] = []
     for row in rows:
