@@ -42,7 +42,7 @@ def list_candidates(
         if min_score is not None:
             q = q.filter(RecommendationScore.total_score >= min_score)
 
-    return q.order_by(YahooAuctionCandidate.created_at.desc()).limit(200).all()
+    return q.distinct(YahooAuctionCandidate.id).order_by(YahooAuctionCandidate.created_at.desc()).limit(200).all()
 
 
 @router.get('/export.csv')
@@ -103,8 +103,20 @@ def score_candidate(candidate_id: int, db: Session = Depends(get_db)):
 
     computed = compute_recommendation(candidate)
 
-    score = RecommendationScore(candidate_id=candidate_id, **computed)
-    db.add(score)
+    score = (
+        db.query(RecommendationScore)
+        .filter(RecommendationScore.candidate_id == candidate_id)
+        .order_by(RecommendationScore.created_at.desc())
+        .first()
+    )
+
+    if score is None:
+        score = RecommendationScore(candidate_id=candidate_id, **computed)
+        db.add(score)
+    else:
+        for key, value in computed.items():
+            setattr(score, key, value)
+
     db.commit()
     db.refresh(score)
     return score
