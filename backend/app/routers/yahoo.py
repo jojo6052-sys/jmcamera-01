@@ -1,6 +1,7 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -46,7 +47,12 @@ def yahoo_search(payload: YahooSearchRequest, db: Session = Depends(get_db)):
         db.add(entity)
         entities.append(entity)
 
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"failed to save yahoo candidates: {exc.__class__.__name__}") from exc
+
     for item in entities:
         db.refresh(item)
     return entities

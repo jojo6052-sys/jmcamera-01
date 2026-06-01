@@ -60,8 +60,8 @@ export default function SearchKeywordsPage() {
       })
       setForm(initialForm)
       await load()
-    } catch {
-      setError('キーワードの追加に失敗しました。既に登録済みのキーワードでないか確認してください。')
+    } catch (err) {
+      setError(`キーワードの追加に失敗しました: ${err instanceof Error ? err.message : '既に登録済みのキーワードでないか確認してください。'}`)
     } finally {
       setLoading(false)
     }
@@ -90,8 +90,8 @@ export default function SearchKeywordsPage() {
         exclude_words: excludeWords.split(',').map((word) => word.trim()).filter(Boolean),
       })
       setFetchMessage(`${item.keyword}: ${candidates.length}件の候補を保存しました。Recommendationsで確認できます。`)
-    } catch {
-      setError('ヤフオク候補取得に失敗しました')
+    } catch (err) {
+      setError(`ヤフオク候補取得に失敗しました: ${err instanceof Error ? err.message : 'unknown error'}`)
     } finally {
       setFetchingKeywordId(null)
     }
