@@ -23,10 +23,13 @@ def yahoo_search(payload: YahooSearchRequest, db: Session = Depends(get_db)):
     )
 
     entities: list[YahooAuctionCandidate] = []
+    seen_auction_ids: set[str] = set()
     for row in rows:
-        auction_id = row.auction_id
-        if db.query(YahooAuctionCandidate).filter(YahooAuctionCandidate.auction_id == auction_id).first():
-            auction_id = f"{auction_id}-{uuid4().hex[:6]}"
+        base_auction_id = row.auction_id
+        auction_id = base_auction_id
+        while auction_id in seen_auction_ids or db.query(YahooAuctionCandidate).filter(YahooAuctionCandidate.auction_id == auction_id).first():
+            auction_id = f"{base_auction_id}-{uuid4().hex[:6]}"
+        seen_auction_ids.add(auction_id)
 
         entity = YahooAuctionCandidate(
             auction_id=auction_id,

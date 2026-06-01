@@ -36,13 +36,14 @@ def list_candidates(
         q = q.filter(YahooAuctionCandidate.status == status)
 
     if rank or min_score is not None:
-        q = q.join(RecommendationScore, RecommendationScore.candidate_id == YahooAuctionCandidate.id)
+        score_q = db.query(RecommendationScore.candidate_id)
         if rank:
-            q = q.filter(RecommendationScore.rank == rank)
+            score_q = score_q.filter(RecommendationScore.rank == rank)
         if min_score is not None:
-            q = q.filter(RecommendationScore.total_score >= min_score)
+            score_q = score_q.filter(RecommendationScore.total_score >= min_score)
+        q = q.filter(YahooAuctionCandidate.id.in_(score_q.distinct()))
 
-    return q.distinct(YahooAuctionCandidate.id).order_by(YahooAuctionCandidate.created_at.desc()).limit(200).all()
+    return q.order_by(YahooAuctionCandidate.created_at.desc()).limit(200).all()
 
 
 @router.get('/export.csv')
