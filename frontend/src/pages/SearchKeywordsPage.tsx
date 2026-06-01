@@ -42,16 +42,29 @@ export default function SearchKeywordsPage() {
   }, [])
 
   async function createKeyword() {
-    if (!form.keyword?.trim()) return
-    await apiPost('/api/search-keywords', {
-      ...form,
-      keyword: form.keyword.trim(),
-      category: form.category || null,
-      brand: form.brand || null,
-      model_group: form.model_group || null,
-    })
-    setForm(initialForm)
-    await load()
+    if (!form.keyword?.trim()) {
+      setError('キーワードを入力してください')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setFetchMessage('')
+    try {
+      await apiPost('/api/search-keywords', {
+        ...form,
+        keyword: form.keyword.trim(),
+        category: form.category || null,
+        brand: form.brand || null,
+        model_group: form.model_group || null,
+      })
+      setForm(initialForm)
+      await load()
+    } catch {
+      setError('キーワードの追加に失敗しました。既に登録済みのキーワードでないか確認してください。')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function toggleActive(item: SearchKeyword) {
@@ -94,7 +107,7 @@ export default function SearchKeywordsPage() {
           <input className="border rounded px-2 py-2" placeholder="brand" value={form.brand || ''} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
           <input className="border rounded px-2 py-2" placeholder="model group" value={form.model_group || ''} onChange={(e) => setForm({ ...form, model_group: e.target.value })} />
           <input className="border rounded px-2 py-2" type="number" placeholder="priority" value={form.priority ?? 100} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
-          <button className="px-3 py-2 bg-slate-800 text-white rounded" onClick={createKeyword}>追加</button>
+          <button className="px-3 py-2 bg-slate-800 text-white rounded disabled:bg-slate-400" disabled={loading} onClick={createKeyword}>{loading ? '追加中...' : '追加'}</button>
         </div>
       </div>
 
