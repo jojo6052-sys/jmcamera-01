@@ -3,6 +3,7 @@ import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -27,7 +28,14 @@ def list_candidates(
 ):
     q = db.query(YahooAuctionCandidate)
     if keyword:
-        q = q.filter(YahooAuctionCandidate.search_keyword == keyword)
+        keyword_pattern = f"%{keyword.strip()}%"
+        q = q.filter(
+            or_(
+                YahooAuctionCandidate.search_keyword.ilike(keyword_pattern),
+                YahooAuctionCandidate.title.ilike(keyword_pattern),
+                YahooAuctionCandidate.normalized_title.ilike(keyword_pattern),
+            )
+        )
     if max_price is not None:
         q = q.filter(YahooAuctionCandidate.current_price_jpy <= max_price)
     if seller_id:
