@@ -76,3 +76,47 @@ es_number,title,normalized_title,brand,model,category,mount,condition_rank,purch
 
 - `GET /api/candidates/export.csv`: 候補一覧をCSVダウンロード（既存フィルタ適用）
 - `POST /api/yahoo/search` は `min_price` / `max_price` / `exclude_words` に対応
+
+## UX検証チェックポイント（2026-06-01）
+現状は、以下の流れをブラウザ上で一通り確認できる区切りです。
+
+### 1. 起動
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+- Frontend: http://localhost:5173
+- Backend health: http://localhost:8001/health
+- API health: http://localhost:8001/api/health
+
+### 2. Search Keywordsで候補取得
+1. `Search Keywords` タブを開く。
+2. `keyword` に例として `Canon EOS 5D` を入力し、必要に応じて category / brand / priority を入力する。
+3. `追加` を押してキーワードを登録する。
+4. `ヤフオク候補取得条件` で取得件数、最低価格、最高価格、除外ワードを設定する。
+5. 登録済みキーワード行の `候補取得` を押す。
+6. 成功メッセージが表示されたら `Recommendations` タブへ移動する。
+
+### 3. Recommendationsで推薦確認
+1. `Recommendations` タブでキーワード、ランク、最小スコア、上限価格を指定して `検索` する。
+2. 候補行の `Score` を押して推薦スコアを計算する。
+3. 必要に応じて `仕入れ` / `要確認` / `見送り` を押して判断を保存する。
+4. `CSV出力` で現在の条件に一致する候補一覧をダウンロードする。
+
+### 4. Product Analytics確認
+商品CSVを投入済みの場合、`Product Analytics` タブで Best Sellers と Category Analytics を確認できます。
+CSV投入はAPIから実行します。
+
+```bash
+curl -X POST http://localhost:8001/api/import/products \
+  -F "file=@path/to/products.csv"
+```
+
+CSVヘッダー例は「CSVサンプルヘッダー」を参照してください。
+
+### 検証時に見てほしいポイント
+- 初回ユーザーが迷わず「キーワード追加 → 候補取得 → 推薦スコア → 判断保存」まで進めるか。
+- 価格条件・除外ワードの意味が画面だけで理解できるか。
+- RecommendationsのフィルタとCSV出力が期待どおりか。
+- 表示文言、ボタン配置、テーブル項目に不足がないか。
