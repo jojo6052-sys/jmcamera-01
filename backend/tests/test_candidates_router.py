@@ -171,3 +171,17 @@ def test_list_candidates_includes_latest_score_summary() -> None:
     assert len(payload) == 1
     assert payload[0]["latest_total_score"] == 88.0
     assert payload[0]["latest_rank"] == "A"
+
+
+def test_feedback_endpoint_updates_candidate_status() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="feedback-status-1")
+
+    response = client.post(f"/api/candidates/{candidate.id}/feedback", json={"user_decision": "skip"})
+    assert response.status_code == 200
+    assert response.json()["user_decision"] == "skip"
+
+    with TestingSessionLocal() as db:
+        updated = db.get(YahooAuctionCandidate, candidate.id)
+        assert updated is not None
+        assert updated.status == "skip"

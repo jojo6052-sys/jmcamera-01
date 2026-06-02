@@ -5,6 +5,7 @@ import type { Candidate, FeedbackRequest, RecommendationScore } from '../types/c
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 type RankFilter = '' | 'A' | 'B' | 'C'
+type StatusFilter = '' | 'new' | 'purchase' | 'review' | 'skip'
 
 function formatNumber(value: number | null | undefined, digits = 0) {
   if (value === null || value === undefined) return '-'
@@ -21,9 +22,20 @@ function formatPercent(value: number | null | undefined) {
   return formatted === '-' ? formatted : `${formatted}%`
 }
 
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    new: '未判断',
+    purchase: '仕入れ',
+    review: '要確認',
+    skip: '見送り',
+  }
+  return labels[status] ?? status
+}
+
 export default function RecommendationsPage() {
   const [keyword, setKeyword] = useState('')
   const [rank, setRank] = useState<RankFilter>('')
+  const [status, setStatus] = useState<StatusFilter>('')
   const [minScore, setMinScore] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
 
@@ -36,11 +48,12 @@ export default function RecommendationsPage() {
     const params = new URLSearchParams()
     if (keyword.trim()) params.set('keyword', keyword.trim())
     if (rank) params.set('rank', rank)
+    if (status) params.set('status', status)
     if (minScore.trim()) params.set('min_score', minScore.trim())
     if (maxPrice.trim()) params.set('max_price', maxPrice.trim())
     const query = params.toString()
     return query ? `?${query}` : ''
-  }, [keyword, rank, minScore, maxPrice])
+  }, [keyword, rank, status, minScore, maxPrice])
 
   async function loadCandidates() {
     setLoading(true)
@@ -71,8 +84,13 @@ export default function RecommendationsPage() {
   }
 
   async function sendFeedback(candidateId: number, user_decision: FeedbackRequest['user_decision']) {
-    await apiPost(`/api/candidates/${candidateId}/feedback`, { user_decision })
-    await loadCandidates()
+    setError('')
+    try {
+      await apiPost(`/api/candidates/${candidateId}/feedback`, { user_decision })
+      await loadCandidates()
+    } catch {
+      setError('フィードバック保存に失敗しました')
+    }
   }
 
   const exportUrl = `${API_BASE_URL}/api/candidates/export.csv${queryString}`
@@ -98,6 +116,17 @@ export default function RecommendationsPage() {
               <option value="A">A</option>
               <option value="B">B</option>
               <option value="C">C</option>
+            </select>
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-600 mb-1">判定ステータス</div>
+            <select className="border rounded px-3 py-2 w-32" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}>
+              <option value="">All</option>
+              <option value="new">未判断</option>
+              <option value="purchase">仕入れ</option>
+              <option value="review">要確認</option>
+              <option value="skip">見送り</option>
             </select>
           </div>
 
@@ -141,6 +170,7 @@ export default function RecommendationsPage() {
               <th className="p-2">Title</th>
               <th className="p-2">Current</th>
               <th className="p-2">Seller</th>
+              <th className="p-2">Status</th>
               <th className="p-2">Score</th>
               <th className="p-2">Rank</th>
               <th className="p-2">Action</th>
@@ -175,6 +205,7 @@ export default function RecommendationsPage() {
                   </td>
                   <td className="p-2">{c.current_price_jpy ?? '-'}</td>
                   <td className="p-2">{c.seller_id || '-'} / {c.seller_rating ?? '-'}</td>
+                  <td className="p-2"><span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">{statusLabel(c.status)}</span></td>
                   <td className="p-2">{score?.total_score ?? c.latest_total_score ?? '-'}</td>
                   <td className="p-2 font-semibold">{score?.rank ?? c.latest_rank ?? '-'}</td>
                   <td className="p-2 space-x-1">

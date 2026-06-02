@@ -8,6 +8,12 @@ from app.schemas.feedbacks import FeedbackCreate, FeedbackRead
 
 router = APIRouter(prefix='/api/candidates', tags=['feedbacks'])
 
+CANDIDATE_STATUS_BY_DECISION = {
+    'purchase': 'purchase',
+    'review': 'review',
+    'skip': 'skip',
+}
+
 
 @router.post('/{candidate_id}/feedback', response_model=FeedbackRead)
 def create_feedback(candidate_id: int, payload: FeedbackCreate, db: Session = Depends(get_db)):
@@ -31,6 +37,8 @@ def create_feedback(candidate_id: int, payload: FeedbackCreate, db: Session = De
         ai_prediction_was_correct=payload.ai_prediction_was_correct,
         notes=payload.notes,
     )
+    candidate.status = CANDIDATE_STATUS_BY_DECISION.get(payload.user_decision, candidate.status)
+
     db.add(feedback)
     db.commit()
     db.refresh(feedback)
