@@ -6,6 +6,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001
 
 type RankFilter = '' | 'A' | 'B' | 'C'
 
+function formatNumber(value: number | null | undefined, digits = 0) {
+  if (value === null || value === undefined) return '-'
+  return value.toLocaleString('ja-JP', { maximumFractionDigits: digits })
+}
+
+function formatJpy(value: number | null | undefined) {
+  const formatted = formatNumber(value)
+  return formatted === '-' ? formatted : `¥${formatted}`
+}
+
+function formatPercent(value: number | null | undefined) {
+  const formatted = formatNumber(value, 1)
+  return formatted === '-' ? formatted : `${formatted}%`
+}
+
 export default function RecommendationsPage() {
   const [keyword, setKeyword] = useState('')
   const [rank, setRank] = useState<RankFilter>('')
@@ -46,8 +61,13 @@ export default function RecommendationsPage() {
   }, [])
 
   async function recalcScore(candidateId: number) {
-    const score = await apiPost<RecommendationScore>(`/api/candidates/${candidateId}/score`, {})
-    setScores((prev) => ({ ...prev, [candidateId]: score }))
+    setError('')
+    try {
+      const score = await apiPost<RecommendationScore>(`/api/candidates/${candidateId}/score`, {})
+      setScores((prev) => ({ ...prev, [candidateId]: score }))
+    } catch {
+      setError('推薦スコアの計算に失敗しました')
+    }
   }
 
   async function sendFeedback(candidateId: number, user_decision: FeedbackRequest['user_decision']) {
@@ -136,6 +156,22 @@ export default function RecommendationsPage() {
                       {c.title}
                     </a>
                     <div className="text-xs text-slate-500">{c.search_keyword || '-'}</div>
+                    {score && (
+                      <div className="mt-2 rounded bg-slate-50 p-2 text-xs text-slate-700">
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <div><span className="font-semibold">想定売価:</span> {formatJpy(score.expected_sale_price_jpy)}</div>
+                          <div><span className="font-semibold">想定利益:</span> {formatJpy(score.expected_profit_jpy)}</div>
+                          <div><span className="font-semibold">利益率:</span> {formatPercent(score.expected_profit_margin)}</div>
+                          <div><span className="font-semibold">推奨上限入札:</span> {formatJpy(score.recommended_max_bid_jpy)}</div>
+                          <div><span className="font-semibold">類似度:</span> {formatNumber(score.similarity_score, 1)}</div>
+                          <div><span className="font-semibold">出品者リスク:</span> {formatNumber(score.seller_risk_score, 1)}</div>
+                          <div><span className="font-semibold">説明リスク:</span> {formatNumber(score.description_risk_score, 1)}</div>
+                          <div><span className="font-semibold">画像リスク:</span> {formatNumber(score.image_risk_score, 1)}</div>
+                        </div>
+                        {score.reason && <div className="mt-2"><span className="font-semibold">理由:</span> {score.reason}</div>}
+                        {score.caution && <div className="mt-1 text-amber-700"><span className="font-semibold">注意:</span> {score.caution}</div>}
+                      </div>
+                    )}
                   </td>
                   <td className="p-2">{c.current_price_jpy ?? '-'}</td>
                   <td className="p-2">{c.seller_id || '-'} / {c.seller_rating ?? '-'}</td>
