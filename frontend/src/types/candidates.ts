@@ -13,6 +13,8 @@ export type Candidate = {
   image_urls: string[]
   search_keyword: string | null
   status: string
+  latest_total_score: number | null
+  latest_rank: string | null
 }
 
 export type RecommendationScore = {

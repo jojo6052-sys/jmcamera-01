@@ -119,3 +119,55 @@ def test_list_candidates_rank_filter_returns_unique_candidates() -> None:
     payload = response.json()
     assert len(payload) == 1
     assert payload[0]["auction_id"] == "a-2"
+
+
+def test_list_candidates_keyword_filter_matches_partial_title_and_search_keyword() -> None:
+    with TestingSessionLocal() as db:
+        _create_candidate(db, auction_id="nikon-1")
+        _create_candidate(db, auction_id="canon-1")
+        nikon = db.query(YahooAuctionCandidate).filter(YahooAuctionCandidate.auction_id == "nikon-1").one()
+        canon = db.query(YahooAuctionCandidate).filter(YahooAuctionCandidate.auction_id == "canon-1").one()
+        nikon.title = "ニコン F3 ボディ"
+        nikon.normalized_title = "ニコン f3 ボディ"
+        nikon.search_keyword = "ニコン フィルムカメラ"
+        canon.title = "Canon EOS 5D"
+        canon.normalized_title = "canon eos 5d"
+        canon.search_keyword = "canon"
+        db.commit()
+
+    response = client.get("/api/candidates?keyword=ニコン")
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["auction_id"] == "nikon-1"
+
+
+def test_list_candidates_includes_latest_score_summary() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="score-summary-1")
+        db.add(
+            RecommendationScore(
+                candidate_id=candidate.id,
+                similarity_score=Decimal("70.0"),
+                expected_sale_price_usd=Decimal("200.0"),
+                expected_sale_price_jpy=Decimal("30000.0"),
+                expected_profit_jpy=Decimal("10000.0"),
+                expected_profit_margin=Decimal("33.0"),
+                recommended_max_bid_jpy=Decimal("16000.0"),
+                seller_risk_score=Decimal("10.0"),
+                description_risk_score=Decimal("10.0"),
+                image_risk_score=Decimal("10.0"),
+                total_score=Decimal("88.0"),
+                rank="A",
+                reason="r1",
+                caution="c1",
+            )
+        )
+        db.commit()
+
+    response = client.get("/api/candidates?keyword=Canon")
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["latest_total_score"] == 88.0
+    assert payload[0]["latest_rank"] == "A"

@@ -139,8 +139,8 @@ export default function RecommendationsPage() {
                   </td>
                   <td className="p-2">{c.current_price_jpy ?? '-'}</td>
                   <td className="p-2">{c.seller_id || '-'} / {c.seller_rating ?? '-'}</td>
-                  <td className="p-2">{score?.total_score ?? '-'}</td>
-                  <td className="p-2 font-semibold">{score?.rank ?? '-'}</td>
+                  <td className="p-2">{score?.total_score ?? c.latest_total_score ?? '-'}</td>
+                  <td className="p-2 font-semibold">{score?.rank ?? c.latest_rank ?? '-'}</td>
                   <td className="p-2 space-x-1">
                     <button className="px-2 py-1 bg-indigo-600 text-white rounded" onClick={() => recalcScore(c.id)}>Score</button>
                     <button className="px-2 py-1 bg-green-600 text-white rounded" onClick={() => sendFeedback(c.id, 'purchase')}>仕入れ</button>

@@ -26,6 +26,8 @@ class CandidateRead(BaseModel):
     image_urls: list[str]
     search_keyword: str | None = None
     status: str
+    latest_total_score: float | None = None
+    latest_rank: str | None = None
 
     class Config:
         from_attributes = True
