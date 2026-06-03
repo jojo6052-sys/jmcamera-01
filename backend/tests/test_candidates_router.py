@@ -215,6 +215,23 @@ def test_export_candidates_csv_includes_latest_score_details() -> None:
     assert rows[0]["latest_caution"] == "inspect optics"
 
 
+def test_export_candidates_csv_can_target_candidate_ids() -> None:
+    with TestingSessionLocal() as db:
+        included = _create_candidate(db, auction_id="csv-target-included")
+        excluded = _create_candidate(db, auction_id="csv-target-excluded")
+        included_id = included.id
+        excluded_id = excluded.id
+
+    response = client.get(f"/api/candidates/export.csv?candidate_ids={included_id}")
+    assert response.status_code == 200
+    rows = list(csv.DictReader(io.StringIO(response.text)))
+
+    assert len(rows) == 1
+    assert rows[0]["id"] == str(included_id)
+    assert rows[0]["auction_id"] == "csv-target-included"
+    assert rows[0]["id"] != str(excluded_id)
+
+
 def test_rank_and_score_filters_use_latest_score_only() -> None:
     with TestingSessionLocal() as db:
         candidate = _create_candidate(db, auction_id="latest-filter-1")

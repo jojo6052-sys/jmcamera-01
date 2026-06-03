@@ -225,6 +225,12 @@ export default function RecommendationsPage() {
   }
 
   const exportUrl = `${API_BASE_URL}/api/candidates/export.csv${queryString}`
+  const targetExportUrl = useMemo(() => {
+    const params = new URLSearchParams(queryString.startsWith('?') ? queryString.slice(1) : queryString)
+    batchTargetCandidateIds.forEach((candidateId) => params.append('candidate_ids', String(candidateId)))
+    const query = params.toString()
+    return `${API_BASE_URL}/api/candidates/export.csv${query ? `?${query}` : ''}`
+  }, [batchTargetCandidateIds, queryString])
 
   return (
     <div className="space-y-4">
@@ -359,7 +365,8 @@ export default function RecommendationsPage() {
           >
             {batchFeedbacking === 'skip' ? '一括見送り中...' : `${selectedCount > 0 ? '選択中' : '表示中'}を一括見送り`}
           </button>
-          <a className="px-3 py-2 bg-emerald-700 text-white rounded" href={exportUrl}>CSV出力</a>
+          <a className="px-3 py-2 bg-emerald-700 text-white rounded" href={targetExportUrl}>対象CSV</a>
+          <a className="px-3 py-2 bg-emerald-100 text-emerald-800 rounded" href={exportUrl}>絞り込み全件CSV</a>
         </div>
       </div>
 

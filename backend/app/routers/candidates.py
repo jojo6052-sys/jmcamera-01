@@ -49,8 +49,11 @@ def list_candidates(
     max_price: float | None = Query(default=None),
     seller_id: str | None = None,
     status: str | None = None,
+    candidate_ids: list[int] | None = Query(default=None),
 ):
     q = db.query(YahooAuctionCandidate)
+    if candidate_ids:
+        q = q.filter(YahooAuctionCandidate.id.in_(candidate_ids))
     if keyword:
         keyword_pattern = f"%{keyword.strip()}%"
         q = q.filter(
@@ -112,8 +115,18 @@ def export_candidates_csv(
     max_price: float | None = Query(default=None),
     seller_id: str | None = None,
     status: str | None = None,
+    candidate_ids: list[int] | None = Query(default=None),
 ):
-    rows = list_candidates(db, keyword=keyword, rank=rank, min_score=min_score, max_price=max_price, seller_id=seller_id, status=status)
+    rows = list_candidates(
+        db,
+        keyword=keyword,
+        rank=rank,
+        min_score=min_score,
+        max_price=max_price,
+        seller_id=seller_id,
+        status=status,
+        candidate_ids=candidate_ids,
+    )
 
     out = io.StringIO()
     writer = csv.writer(out)
