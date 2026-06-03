@@ -14,7 +14,22 @@ USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
+REQUEST_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,ja;q=0.8",
+    "Cache-Control": "no-cache",
+}
 EBAY_SEARCH_URL = "https://www.ebay.com/sch/i.html"
+EBAY_BLOCKED_MESSAGE = (
+    "eBay blocked this server-side request with HTTP 403 Forbidden. "
+    "The seller URL is valid, but eBay is refusing automated access from this environment; "
+    "try again later or use an official eBay API/import flow for reliable production collection."
+)
+
+
+class EbayFetchBlockedError(RuntimeError):
+    """Raised when eBay refuses direct server-side page fetching."""
 
 
 @dataclass
@@ -87,7 +102,9 @@ def _requested_statuses(*, include_active: bool, include_sold: bool) -> list[str
 
 
 def _fetch_html(url: str) -> str:
-    response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=12)
+    response = requests.get(url, headers=REQUEST_HEADERS, timeout=12)
+    if response.status_code == 403:
+        raise EbayFetchBlockedError(EBAY_BLOCKED_MESSAGE)
     response.raise_for_status()
     return response.text
 

@@ -134,6 +134,7 @@ export default function CompetitorResearchPage() {
             <div>
               <h3 className="font-semibold">{selectedSeller ? `${selectedSeller.seller_username} の商品` : '商品'}</h3>
               <div className="text-xs text-slate-600">表示中: 出品中 {activeCount} / Sold {soldCount}</div>
+              {selectedSeller?.fetch_status === 'blocked' && <div className="text-xs text-amber-700">eBay側で自動取得が403ブロックされました。URLは認識できていますが、この環境からの直接取得が拒否されています。</div>}
               {selectedSeller?.last_error && <div className="text-xs text-amber-700">取得エラー: {selectedSeller.last_error}</div>}
             </div>
             <div className="flex gap-2">

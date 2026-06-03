@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.database import Base, get_db
 from app.main import app
 from app.models.competitor import CompetitorItem, CompetitorSeller
-from app.services.ebay_research import CompetitorItemPayload, _parse_ebay_items, extract_ebay_seller_username
+from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, _fetch_html, _parse_ebay_items, extract_ebay_seller_username
 
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_competitors_router.db"
@@ -47,6 +47,25 @@ def test_extract_ebay_seller_username_from_common_urls() -> None:
     assert extract_ebay_seller_username("https://www.ebay.com/str/jmcamera") == "jmcamera"
     assert extract_ebay_seller_username("https://www.ebay.com/usr/camera-pro") == "camera-pro"
     assert extract_ebay_seller_username("https://www.ebay.com/sch/i.html?_ssn=top-seller") == "top-seller"
+
+
+def test_fetch_html_converts_ebay_403_to_blocked_error(monkeypatch) -> None:
+    class FakeResponse:
+        status_code = 403
+        text = "Forbidden"
+
+        def raise_for_status(self):  # pragma: no cover - must not be called for 403 mapping
+            raise AssertionError("raise_for_status should not be called for mapped 403")
+
+    monkeypatch.setattr("app.services.ebay_research.requests.get", lambda *args, **kwargs: FakeResponse())
+
+    try:
+        _fetch_html("https://www.ebay.com/sch/i.html?_ssn=blocked")
+    except EbayFetchBlockedError as exc:
+        assert "HTTP 403 Forbidden" in str(exc)
+        assert "official eBay API" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("expected EbayFetchBlockedError")
 
 
 def test_parse_ebay_items_reads_title_price_link_and_image() -> None:
@@ -117,6 +136,26 @@ def test_analyze_competitor_upserts_seller_items_and_summary(monkeypatch) -> Non
         with TestingSessionLocal() as db:
             assert db.query(CompetitorSeller).count() == 1
             assert db.query(CompetitorItem).count() == 2
+    finally:
+        restore_db_override(previous_override)
+
+
+def test_analyze_competitor_records_blocked_status_without_raw_httperror(monkeypatch) -> None:
+    def fake_fetch(*args, **kwargs):
+        raise EbayFetchBlockedError("eBay blocked this server-side request with HTTP 403 Forbidden.")
+
+    monkeypatch.setattr("app.routers.competitors.fetch_competitor_items", fake_fetch)
+    previous_override = with_test_db_override()
+    try:
+        response = client.post("/api/competitors/analyze", json={"seller_url": "https://www.ebay.com/str/blocked-seller"})
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["seller"]["seller_username"] == "blocked-seller"
+        assert payload["seller"]["fetch_status"] == "blocked"
+        assert "HTTP 403 Forbidden" in payload["seller"]["last_error"]
+        assert "HTTPError" not in payload["seller"]["last_error"]
+        assert payload["items"] == []
     finally:
         restore_db_override(previous_override)
 

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.competitor import CompetitorItem, CompetitorSeller
 from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorItemRead, CompetitorSellerRead
-from app.services.ebay_research import CompetitorItemPayload, extract_ebay_seller_username, fetch_competitor_items
+from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, extract_ebay_seller_username, fetch_competitor_items
 
 router = APIRouter(prefix="/api/competitors", tags=["competitors"])
 
@@ -33,8 +33,8 @@ def analyze_competitor(payload: CompetitorAnalyzeRequest, db: Session = Depends(
         except ValueError as parse_exc:
             raise HTTPException(status_code=422, detail=str(parse_exc)) from parse_exc
         fetched_items = []
-        fetch_status = "failed"
-        last_error = f"{exc.__class__.__name__}: {exc}"
+        fetch_status = "blocked" if isinstance(exc, EbayFetchBlockedError) else "failed"
+        last_error = str(exc) if isinstance(exc, EbayFetchBlockedError) else f"{exc.__class__.__name__}: {exc}"
 
     seller = upsert_competitor_seller(
         db,

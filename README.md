@@ -139,4 +139,4 @@ https://www.ebay.com/usr/example-seller
 https://www.ebay.com/sch/i.html?_ssn=example-seller
 ```
 
-> 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。ページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。本格運用ではeBay公式API連携やレート制御を追加する予定です。
+> 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。eBayが自動取得を403 Forbiddenで拒否した場合は `fetch_status=blocked`、その他のページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。本格運用ではeBay公式API連携やレート制御を追加する予定です。
