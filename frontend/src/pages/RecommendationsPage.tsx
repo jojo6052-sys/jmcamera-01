@@ -6,6 +6,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001
 
 type RankFilter = '' | 'A' | 'B' | 'C'
 type StatusFilter = '' | 'new' | 'purchase' | 'review' | 'skip'
+type SortBy = 'created' | 'price' | 'score' | 'rank' | 'title' | 'end_time'
+type SortDir = 'asc' | 'desc'
 
 function formatNumber(value: number | null | undefined, digits = 0) {
   if (value === null || value === undefined) return '-'
@@ -20,6 +22,18 @@ function formatJpy(value: number | null | undefined) {
 function formatPercent(value: number | null | undefined) {
   const formatted = formatNumber(value, 1)
   return formatted === '-' ? formatted : `${formatted}%`
+}
+
+
+function rankWeight(rank: string | null | undefined) {
+  const weights: Record<string, number> = { A: 3, B: 2, C: 1 }
+  return rank ? (weights[rank] ?? 0) : 0
+}
+
+function compareNullableNumbers(left: number | null | undefined, right: number | null | undefined) {
+  if (left === null || left === undefined) return right === null || right === undefined ? 0 : 1
+  if (right === null || right === undefined) return -1
+  return left - right
 }
 
 function statusLabel(status: string) {
@@ -38,6 +52,8 @@ export default function RecommendationsPage() {
   const [status, setStatus] = useState<StatusFilter>('')
   const [minScore, setMinScore] = useState('')
   const [maxPrice, setMaxPrice] = useState('')
+  const [sortBy, setSortBy] = useState<SortBy>('created')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(false)
@@ -83,12 +99,40 @@ export default function RecommendationsPage() {
     loadCandidates()
   }, [])
 
-  const totalPages = Math.max(1, Math.ceil(candidates.length / pageSize))
+  const sortedCandidates = useMemo(() => {
+    const direction = sortDir === 'asc' ? 1 : -1
+    return [...candidates].sort((left, right) => {
+      const leftScore = scores[left.id] ?? left.latest_score
+      const rightScore = scores[right.id] ?? right.latest_score
+      let result = 0
+
+      if (sortBy === 'price') {
+        result = compareNullableNumbers(left.current_price_jpy, right.current_price_jpy)
+      } else if (sortBy === 'score') {
+        result = compareNullableNumbers(leftScore?.total_score, rightScore?.total_score)
+      } else if (sortBy === 'rank') {
+        result = rankWeight(leftScore?.rank ?? left.latest_rank) - rankWeight(rightScore?.rank ?? right.latest_rank)
+      } else if (sortBy === 'title') {
+        result = left.title.localeCompare(right.title, 'ja')
+      } else if (sortBy === 'end_time') {
+        result = compareNullableNumbers(
+          left.end_time ? Date.parse(left.end_time) : null,
+          right.end_time ? Date.parse(right.end_time) : null,
+        )
+      } else {
+        result = right.id - left.id
+      }
+
+      return result === 0 ? right.id - left.id : result * direction
+    })
+  }, [candidates, scores, sortBy, sortDir])
+
+  const totalPages = Math.max(1, Math.ceil(sortedCandidates.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const pageStartIndex = (safeCurrentPage - 1) * pageSize
   const pageCandidates = useMemo(
-    () => candidates.slice(pageStartIndex, pageStartIndex + pageSize),
-    [candidates, pageStartIndex, pageSize],
+    () => sortedCandidates.slice(pageStartIndex, pageStartIndex + pageSize),
+    [sortedCandidates, pageStartIndex, pageSize],
   )
   const visibleCandidateIds = useMemo(() => pageCandidates.map((candidate) => candidate.id), [pageCandidates])
   const selectedVisibleCandidateIds = useMemo(
@@ -98,7 +142,7 @@ export default function RecommendationsPage() {
   const batchTargetCandidateIds = selectedVisibleCandidateIds.length > 0 ? selectedVisibleCandidateIds : visibleCandidateIds
   const allVisibleSelected = visibleCandidateIds.length > 0 && selectedVisibleCandidateIds.length === visibleCandidateIds.length
   const selectedCount = selectedVisibleCandidateIds.length
-  const pageEndIndex = Math.min(pageStartIndex + pageCandidates.length, candidates.length)
+  const pageEndIndex = Math.min(pageStartIndex + pageCandidates.length, sortedCandidates.length)
 
   function toggleCandidateSelected(candidateId: number) {
     setSelectedCandidateIds((prev) => {
@@ -259,6 +303,40 @@ export default function RecommendationsPage() {
             </select>
           </div>
 
+          <div>
+            <div className="text-xs text-slate-600 mb-1">並び替え</div>
+            <select
+              className="border rounded px-3 py-2 w-36"
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as SortBy)
+                setCurrentPage(1)
+              }}
+            >
+              <option value="created">取得順</option>
+              <option value="score">スコア</option>
+              <option value="rank">ランク</option>
+              <option value="price">現在価格</option>
+              <option value="title">タイトル</option>
+              <option value="end_time">終了時刻</option>
+            </select>
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-600 mb-1">方向</div>
+            <select
+              className="border rounded px-3 py-2 w-28"
+              value={sortDir}
+              onChange={(e) => {
+                setSortDir(e.target.value as SortDir)
+                setCurrentPage(1)
+              }}
+            >
+              <option value="desc">降順</option>
+              <option value="asc">昇順</option>
+            </select>
+          </div>
+
           <button className="px-3 py-2 bg-slate-800 text-white rounded" onClick={loadCandidates}>検索</button>
           <button
             className="px-3 py-2 bg-indigo-700 text-white rounded disabled:cursor-not-allowed disabled:bg-indigo-300"
@@ -296,7 +374,7 @@ export default function RecommendationsPage() {
       {candidates.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-700">
           <div>
-            {candidates.length}件中 {pageStartIndex + 1}〜{pageEndIndex}件を表示（{safeCurrentPage}/{totalPages}ページ）
+            {sortedCandidates.length}件中 {pageStartIndex + 1}〜{pageEndIndex}件を表示（{safeCurrentPage}/{totalPages}ページ）
           </div>
           <div className="space-x-2">
             <button
