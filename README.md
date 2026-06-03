@@ -105,8 +105,13 @@ docker compose up --build
 4. `CSV出力` で現在の条件に一致する候補一覧をダウンロードする。
 
 ### 4. Product Analytics確認
-商品CSVを投入済みの場合、`Product Analytics` タブで Best Sellers と Category Analytics を確認できます。
-CSV投入はAPIから実行します。
+1. `Product Analytics` タブを開く。
+2. 手元にCSVが無い場合は `サンプルCSVダウンロード` を押して検証用CSVを保存する。
+3. ファイル選択でCSVを選び、`CSVインポート` を押す。
+4. 成功メッセージが表示されたら Best Sellers と Category Analytics が更新されていることを確認する。
+5. 必要に応じて `再読み込み` を押して最新の分析結果を取得する。
+
+APIから直接投入する場合は以下でも実行できます。
 
 ```bash
 curl -X POST http://localhost:8001/api/import/products \

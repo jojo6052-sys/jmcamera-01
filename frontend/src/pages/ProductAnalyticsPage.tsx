@@ -3,6 +3,13 @@ import { apiGet, apiPostForm } from '../api/client'
 import type { BestSellerItem, CategoryAnalyticsItem } from '../types/analytics'
 import type { ProductImportResponse } from '../types/imports'
 
+
+const sampleProductsCsv = [
+  'es_number,title,normalized_title,brand,model,category,mount,condition_rank,purchase_price_jpy,sale_price_usd,sale_price_jpy,gross_profit_jpy,final_profit_jpy,profit_margin,purchased_at,listed_at,sold_at,days_to_sell,sales_channel,buyer_country,returned,complaint,repair_required,seller_id,source_platform,source_url,notes',
+  'ES-001,Canon EOS 5D,canon eos 5d,Canon,EOS 5D,Camera,EF,B,45000,650,95000,50000,42000,44.2,2026-05-01,2026-05-03,2026-05-12,9,eBay,US,false,false,false,seller-a,Yahoo Auctions,https://example.com/a,Sample row',
+  'ES-002,Nikon F3 Body,nikon f3 body,Nikon,F3,Film Camera,F,A,28000,420,62000,34000,28000,45.1,2026-05-02,2026-05-04,2026-05-20,16,eBay,CA,false,false,false,seller-b,Yahoo Auctions,https://example.com/b,Sample row',
+].join('\n')
+
 export default function ProductAnalyticsPage() {
   const [bestSellers, setBestSellers] = useState<BestSellerItem[]>([])
   const [categories, setCategories] = useState<CategoryAnalyticsItem[]>([])
@@ -34,6 +41,16 @@ export default function ProductAnalyticsPage() {
   useEffect(() => {
     loadAnalytics()
   }, [])
+
+  function downloadSampleCsv() {
+    const blob = new Blob([sampleProductsCsv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'jm-camera-products-sample.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
 
   async function uploadProductsCsv() {
     if (!file) {
@@ -80,6 +97,9 @@ export default function ProductAnalyticsPage() {
             onClick={uploadProductsCsv}
           >
             {uploading ? 'インポート中...' : 'CSVインポート'}
+          </button>
+          <button className="px-3 py-2 bg-slate-100 rounded" onClick={downloadSampleCsv}>
+            サンプルCSVダウンロード
           </button>
           <button className="px-3 py-2 bg-slate-100 rounded disabled:text-slate-400" disabled={loading || uploading} onClick={loadAnalytics}>
             再読み込み
