@@ -46,6 +46,8 @@ export default function RecommendationsPage() {
   const [scoringAll, setScoringAll] = useState(false)
   const [batchFeedbacking, setBatchFeedbacking] = useState<FeedbackRequest['user_decision'] | ''>('')
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set())
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
@@ -64,6 +66,7 @@ export default function RecommendationsPage() {
     try {
       const data = await apiGet<Candidate[]>(`/api/candidates${queryString}`)
       setCandidates(data)
+      setCurrentPage(1)
       setSelectedCandidateIds((prev) => {
         const loadedIds = new Set(data.map((candidate) => candidate.id))
         return new Set([...prev].filter((candidateId) => loadedIds.has(candidateId)))
@@ -80,7 +83,14 @@ export default function RecommendationsPage() {
     loadCandidates()
   }, [])
 
-  const visibleCandidateIds = useMemo(() => candidates.map((candidate) => candidate.id), [candidates])
+  const totalPages = Math.max(1, Math.ceil(candidates.length / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const pageStartIndex = (safeCurrentPage - 1) * pageSize
+  const pageCandidates = useMemo(
+    () => candidates.slice(pageStartIndex, pageStartIndex + pageSize),
+    [candidates, pageStartIndex, pageSize],
+  )
+  const visibleCandidateIds = useMemo(() => pageCandidates.map((candidate) => candidate.id), [pageCandidates])
   const selectedVisibleCandidateIds = useMemo(
     () => visibleCandidateIds.filter((candidateId) => selectedCandidateIds.has(candidateId)),
     [visibleCandidateIds, selectedCandidateIds],
@@ -88,6 +98,7 @@ export default function RecommendationsPage() {
   const batchTargetCandidateIds = selectedVisibleCandidateIds.length > 0 ? selectedVisibleCandidateIds : visibleCandidateIds
   const allVisibleSelected = visibleCandidateIds.length > 0 && selectedVisibleCandidateIds.length === visibleCandidateIds.length
   const selectedCount = selectedVisibleCandidateIds.length
+  const pageEndIndex = Math.min(pageStartIndex + pageCandidates.length, candidates.length)
 
   function toggleCandidateSelected(candidateId: number) {
     setSelectedCandidateIds((prev) => {
@@ -231,6 +242,23 @@ export default function RecommendationsPage() {
             />
           </div>
 
+          <div>
+            <div className="text-xs text-slate-600 mb-1">表示件数</div>
+            <select
+              className="border rounded px-3 py-2 w-28"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value))
+                setCurrentPage(1)
+              }}
+            >
+              <option value={10}>10件</option>
+              <option value={25}>25件</option>
+              <option value={50}>50件</option>
+              <option value={100}>100件</option>
+            </select>
+          </div>
+
           <button className="px-3 py-2 bg-slate-800 text-white rounded" onClick={loadCandidates}>検索</button>
           <button
             className="px-3 py-2 bg-indigo-700 text-white rounded disabled:cursor-not-allowed disabled:bg-indigo-300"
@@ -261,7 +289,31 @@ export default function RecommendationsPage() {
       {loading && <div className="text-slate-600 text-sm">loading...</div>}
       {!loading && candidates.length > 0 && (
         <div className="text-xs text-slate-600">
-          {selectedCount > 0 ? `${selectedCount}件を選択中。一括操作は選択中のみ対象です。` : '未選択の場合、一括操作は表示中の全候補が対象です。'}
+          {selectedCount > 0 ? `${selectedCount}件を選択中。一括操作は選択中のみ対象です。` : '未選択の場合、一括操作はこのページに表示中の候補が対象です。'}
+        </div>
+      )}
+
+      {candidates.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-700">
+          <div>
+            {candidates.length}件中 {pageStartIndex + 1}〜{pageEndIndex}件を表示（{safeCurrentPage}/{totalPages}ページ）
+          </div>
+          <div className="space-x-2">
+            <button
+              className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:text-slate-300"
+              disabled={safeCurrentPage <= 1}
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            >
+              前へ
+            </button>
+            <button
+              className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:text-slate-300"
+              disabled={safeCurrentPage >= totalPages}
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            >
+              次へ
+            </button>
+          </div>
         </div>
       )}
 
@@ -287,7 +339,7 @@ export default function RecommendationsPage() {
             </tr>
           </thead>
           <tbody>
-            {candidates.map((c) => {
+            {pageCandidates.map((c) => {
               const score = scores[c.id] ?? c.latest_score
               return (
                 <tr key={c.id} className="border-b align-top">
