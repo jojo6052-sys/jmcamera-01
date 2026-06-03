@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class FeedbackCreate(BaseModel):
@@ -17,6 +18,18 @@ class FeedbackCreate(BaseModel):
     repair_required: bool = False
     ai_prediction_was_correct: bool | None = None
     notes: str | None = None
+
+
+class FeedbackBatchCreate(BaseModel):
+    candidate_ids: list[int] = Field(min_length=1, max_length=50)
+    user_decision: Literal['purchase', 'skip', 'review']
+    notes: str | None = None
+
+    @model_validator(mode='after')
+    def validate_unique_candidate_ids(self):
+        if len(set(self.candidate_ids)) != len(self.candidate_ids):
+            raise ValueError('candidate_ids must be unique')
+        return self
 
 
 class FeedbackRead(BaseModel):

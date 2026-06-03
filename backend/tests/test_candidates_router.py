@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.database import Base, get_db
 from app.main import app
+from app.models.feedback import Feedback
 from app.models.recommendation_score import RecommendationScore
 from app.models.yahoo_candidate import YahooAuctionCandidate
 
@@ -273,6 +274,60 @@ def test_score_batch_endpoint_returns_missing_candidate_ids() -> None:
     response = client.post(
         "/api/candidates/score-batch",
         json={"candidate_ids": [candidate_id, 999999]},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "candidates not found: [999999]"
+
+
+def test_feedback_batch_endpoint_updates_visible_candidates() -> None:
+    with TestingSessionLocal() as db:
+        candidate_a = _create_candidate(db, auction_id="feedback-batch-a")
+        candidate_b = _create_candidate(db, auction_id="feedback-batch-b")
+        candidate_a_id = candidate_a.id
+        candidate_b_id = candidate_b.id
+
+    response = client.post(
+        "/api/candidates/feedback-batch",
+        json={"candidate_ids": [candidate_b_id, candidate_a_id], "user_decision": "review", "notes": "bulk review"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [row["candidate_id"] for row in payload] == [candidate_b_id, candidate_a_id]
+    assert {row["user_decision"] for row in payload} == {"review"}
+    assert {row["notes"] for row in payload} == {"bulk review"}
+
+    with TestingSessionLocal() as db:
+        statuses = {
+            row.auction_id: row.status
+            for row in db.query(YahooAuctionCandidate).filter(YahooAuctionCandidate.id.in_([candidate_a_id, candidate_b_id])).all()
+        }
+        assert statuses == {"feedback-batch-a": "review", "feedback-batch-b": "review"}
+        assert db.query(Feedback).count() == 2
+
+
+def test_feedback_batch_endpoint_rejects_duplicate_candidate_ids() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="feedback-batch-duplicate")
+        candidate_id = candidate.id
+
+    response = client.post(
+        "/api/candidates/feedback-batch",
+        json={"candidate_ids": [candidate_id, candidate_id], "user_decision": "skip"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_feedback_batch_endpoint_returns_missing_candidate_ids() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="feedback-batch-missing")
+        candidate_id = candidate.id
+
+    response = client.post(
+        "/api/candidates/feedback-batch",
+        json={"candidate_ids": [candidate_id, 999999], "user_decision": "skip"},
     )
 
     assert response.status_code == 404

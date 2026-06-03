@@ -44,6 +44,7 @@ export default function RecommendationsPage() {
   const [error, setError] = useState('')
   const [scores, setScores] = useState<Record<number, RecommendationScore>>({})
   const [scoringAll, setScoringAll] = useState(false)
+  const [batchFeedbacking, setBatchFeedbacking] = useState<FeedbackRequest['user_decision'] | ''>('')
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
@@ -100,6 +101,23 @@ export default function RecommendationsPage() {
       setError('表示中候補の一括スコア計算に失敗しました')
     } finally {
       setScoringAll(false)
+    }
+  }
+
+  async function sendVisibleFeedback(user_decision: FeedbackRequest['user_decision']) {
+    if (candidates.length === 0) return
+    setBatchFeedbacking(user_decision)
+    setError('')
+    try {
+      await apiPost('/api/candidates/feedback-batch', {
+        candidate_ids: candidates.map((candidate) => candidate.id),
+        user_decision,
+      })
+      await loadCandidates()
+    } catch {
+      setError('表示中候補の一括フィードバック保存に失敗しました')
+    } finally {
+      setBatchFeedbacking('')
     }
   }
 
@@ -182,6 +200,20 @@ export default function RecommendationsPage() {
             onClick={recalcVisibleScores}
           >
             {scoringAll ? '一括スコア計算中...' : '表示中を一括スコア'}
+          </button>
+          <button
+            className="px-3 py-2 bg-amber-700 text-white rounded disabled:cursor-not-allowed disabled:bg-amber-300"
+            disabled={Boolean(batchFeedbacking) || candidates.length === 0}
+            onClick={() => sendVisibleFeedback('review')}
+          >
+            {batchFeedbacking === 'review' ? '一括要確認中...' : '表示中を一括要確認'}
+          </button>
+          <button
+            className="px-3 py-2 bg-slate-700 text-white rounded disabled:cursor-not-allowed disabled:bg-slate-300"
+            disabled={Boolean(batchFeedbacking) || candidates.length === 0}
+            onClick={() => sendVisibleFeedback('skip')}
+          >
+            {batchFeedbacking === 'skip' ? '一括見送り中...' : '表示中を一括見送り'}
           </button>
           <a className="px-3 py-2 bg-emerald-700 text-white rounded" href={exportUrl}>CSV出力</a>
         </div>

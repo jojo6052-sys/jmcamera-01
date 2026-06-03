@@ -39,6 +39,5 @@ app.include_router(imports_router)
 app.include_router(analytics_router)
 app.include_router(search_keywords_router)
 app.include_router(yahoo_router)
-app.include_router(candidates_router)
-
 app.include_router(feedbacks_router)
+app.include_router(candidates_router)
