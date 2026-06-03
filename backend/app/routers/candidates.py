@@ -119,7 +119,9 @@ def export_candidates_csv(
     writer = csv.writer(out)
     writer.writerow([
         'id', 'auction_id', 'title', 'url', 'current_price_jpy', 'buyout_price_jpy',
-        'bid_count', 'end_time', 'seller_id', 'seller_rating', 'search_keyword', 'status', 'latest_total_score', 'latest_rank',
+        'bid_count', 'end_time', 'seller_id', 'seller_rating', 'search_keyword', 'status',
+        'latest_total_score', 'latest_rank', 'latest_expected_profit_jpy',
+        'latest_recommended_max_bid_jpy', 'latest_reason', 'latest_caution',
     ])
     for c in rows:
         writer.writerow([
@@ -137,6 +139,10 @@ def export_candidates_csv(
             c.status,
             c.latest_total_score,
             c.latest_rank,
+            c.latest_score.expected_profit_jpy if c.latest_score else None,
+            c.latest_score.recommended_max_bid_jpy if c.latest_score else None,
+            c.latest_score.reason if c.latest_score else None,
+            c.latest_score.caution if c.latest_score else None,
         ])
 
     out.seek(0)

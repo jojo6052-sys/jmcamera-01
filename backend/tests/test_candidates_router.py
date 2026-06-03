@@ -1,3 +1,5 @@
+import csv
+import io
 from collections.abc import Generator
 from decimal import Decimal
 
@@ -174,6 +176,43 @@ def test_list_candidates_includes_latest_score_summary() -> None:
     assert payload[0]["latest_rank"] == "A"
     assert payload[0]["latest_score"]["reason"] == "r1"
     assert payload[0]["latest_score"]["recommended_max_bid_jpy"] == 16000.0
+
+
+def test_export_candidates_csv_includes_latest_score_details() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="csv-score-1")
+        db.add(
+            RecommendationScore(
+                candidate_id=candidate.id,
+                similarity_score=Decimal("70.0"),
+                expected_sale_price_usd=Decimal("200.0"),
+                expected_sale_price_jpy=Decimal("30000.0"),
+                expected_profit_jpy=Decimal("10000.0"),
+                expected_profit_margin=Decimal("33.0"),
+                recommended_max_bid_jpy=Decimal("16000.0"),
+                seller_risk_score=Decimal("10.0"),
+                description_risk_score=Decimal("10.0"),
+                image_risk_score=Decimal("10.0"),
+                total_score=Decimal("88.0"),
+                rank="A",
+                reason="strong margin",
+                caution="inspect optics",
+            )
+        )
+        db.commit()
+
+    response = client.get("/api/candidates/export.csv?keyword=Canon")
+    assert response.status_code == 200
+    rows = list(csv.DictReader(io.StringIO(response.text)))
+
+    assert len(rows) == 1
+    assert rows[0]["auction_id"] == "csv-score-1"
+    assert rows[0]["latest_total_score"] == "88.0"
+    assert rows[0]["latest_rank"] == "A"
+    assert rows[0]["latest_expected_profit_jpy"] == "10000.00"
+    assert rows[0]["latest_recommended_max_bid_jpy"] == "16000.00"
+    assert rows[0]["latest_reason"] == "strong margin"
+    assert rows[0]["latest_caution"] == "inspect optics"
 
 
 def test_rank_and_score_filters_use_latest_score_only() -> None:
