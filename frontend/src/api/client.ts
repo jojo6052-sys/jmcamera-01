@@ -43,3 +43,11 @@ export async function apiDelete<T = unknown>(path: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, { method: 'DELETE' })
   return parseApiResponse<T>(res)
 }
+
+export async function apiPostForm<T = unknown>(path: string, body: FormData): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    body,
+  })
+  return parseApiResponse<T>(res)
+}
