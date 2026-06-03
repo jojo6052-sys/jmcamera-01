@@ -15,6 +15,7 @@ export type Candidate = {
   status: string
   latest_total_score: number | null
   latest_rank: string | null
+  latest_score: RecommendationScore | null
 }
 
 export type RecommendationScore = {

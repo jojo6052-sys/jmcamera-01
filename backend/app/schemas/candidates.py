@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.scores import RecommendationScoreRead
+
 
 class YahooSearchRequest(BaseModel):
     keyword: str = Field(min_length=1)
@@ -34,5 +36,6 @@ class CandidateRead(BaseModel):
     status: str
     latest_total_score: float | None = None
     latest_rank: str | None = None
+    latest_score: RecommendationScoreRead | None = None
 
     model_config = ConfigDict(from_attributes=True)

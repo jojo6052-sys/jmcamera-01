@@ -171,6 +171,64 @@ def test_list_candidates_includes_latest_score_summary() -> None:
     assert len(payload) == 1
     assert payload[0]["latest_total_score"] == 88.0
     assert payload[0]["latest_rank"] == "A"
+    assert payload[0]["latest_score"]["reason"] == "r1"
+    assert payload[0]["latest_score"]["recommended_max_bid_jpy"] == 16000.0
+
+
+def test_rank_and_score_filters_use_latest_score_only() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="latest-filter-1")
+        db.add(
+            RecommendationScore(
+                candidate_id=candidate.id,
+                similarity_score=Decimal("70.0"),
+                expected_sale_price_usd=Decimal("200.0"),
+                expected_sale_price_jpy=Decimal("30000.0"),
+                expected_profit_jpy=Decimal("10000.0"),
+                expected_profit_margin=Decimal("33.0"),
+                recommended_max_bid_jpy=Decimal("16000.0"),
+                seller_risk_score=Decimal("10.0"),
+                description_risk_score=Decimal("10.0"),
+                image_risk_score=Decimal("10.0"),
+                total_score=Decimal("91.0"),
+                rank="A",
+                reason="old strong score",
+                caution="",
+            )
+        )
+        db.add(
+            RecommendationScore(
+                candidate_id=candidate.id,
+                similarity_score=Decimal("35.0"),
+                expected_sale_price_usd=Decimal("120.0"),
+                expected_sale_price_jpy=Decimal("18000.0"),
+                expected_profit_jpy=Decimal("1000.0"),
+                expected_profit_margin=Decimal("5.0"),
+                recommended_max_bid_jpy=Decimal("10000.0"),
+                seller_risk_score=Decimal("40.0"),
+                description_risk_score=Decimal("30.0"),
+                image_risk_score=Decimal("20.0"),
+                total_score=Decimal("42.0"),
+                rank="C",
+                reason="new weak score",
+                caution="review",
+            )
+        )
+        db.commit()
+
+    stale_rank_response = client.get("/api/candidates?rank=A")
+    assert stale_rank_response.status_code == 200
+    assert stale_rank_response.json() == []
+
+    latest_rank_response = client.get("/api/candidates?rank=C")
+    assert latest_rank_response.status_code == 200
+    latest_rank_payload = latest_rank_response.json()
+    assert len(latest_rank_payload) == 1
+    assert latest_rank_payload[0]["latest_score"]["reason"] == "new weak score"
+
+    high_score_response = client.get("/api/candidates?min_score=80")
+    assert high_score_response.status_code == 200
+    assert high_score_response.json() == []
 
 
 def test_feedback_endpoint_updates_candidate_status() -> None:

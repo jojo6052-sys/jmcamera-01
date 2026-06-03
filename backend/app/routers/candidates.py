@@ -3,7 +3,7 @@ import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -24,7 +24,7 @@ def attach_latest_scores(db: Session, candidates: list[YahooAuctionCandidate]) -
     score_rows = (
         db.query(RecommendationScore)
         .filter(RecommendationScore.candidate_id.in_(candidate_ids))
-        .order_by(RecommendationScore.candidate_id.asc(), RecommendationScore.created_at.desc())
+        .order_by(RecommendationScore.candidate_id.asc(), RecommendationScore.id.desc())
         .all()
     )
     latest_by_candidate_id: dict[int, RecommendationScore] = {}
@@ -33,6 +33,7 @@ def attach_latest_scores(db: Session, candidates: list[YahooAuctionCandidate]) -
 
     for candidate in candidates:
         score = latest_by_candidate_id.get(candidate.id)
+        candidate.latest_score = score
         candidate.latest_total_score = float(score.total_score) if score and score.total_score is not None else None
         candidate.latest_rank = score.rank if score else None
 
@@ -67,12 +68,16 @@ def list_candidates(
         q = q.filter(YahooAuctionCandidate.status == status)
 
     if rank or min_score is not None:
-        score_q = db.query(RecommendationScore.candidate_id)
+        latest_score_ids = db.query(func.max(RecommendationScore.id)).group_by(RecommendationScore.candidate_id)
+        score_q = (
+            db.query(RecommendationScore.candidate_id)
+            .filter(RecommendationScore.id.in_(latest_score_ids))
+        )
         if rank:
             score_q = score_q.filter(RecommendationScore.rank == rank)
         if min_score is not None:
             score_q = score_q.filter(RecommendationScore.total_score >= min_score)
-        q = q.filter(YahooAuctionCandidate.id.in_(score_q.distinct()))
+        q = q.filter(YahooAuctionCandidate.id.in_(score_q))
 
     candidates = q.order_by(YahooAuctionCandidate.created_at.desc()).limit(200).all()
     return attach_latest_scores(db, candidates)

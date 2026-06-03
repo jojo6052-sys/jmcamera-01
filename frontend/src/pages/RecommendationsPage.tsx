@@ -178,7 +178,7 @@ export default function RecommendationsPage() {
           </thead>
           <tbody>
             {candidates.map((c) => {
-              const score = scores[c.id]
+              const score = scores[c.id] ?? c.latest_score
               return (
                 <tr key={c.id} className="border-b align-top">
                   <td className="p-2">
