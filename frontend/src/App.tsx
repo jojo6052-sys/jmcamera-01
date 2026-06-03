@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import ProductAnalyticsPage from './pages/ProductAnalyticsPage'
 import RecommendationsPage from './pages/RecommendationsPage'
+import CompetitorResearchPage from './pages/CompetitorResearchPage'
 import SearchKeywordsPage from './pages/SearchKeywordsPage'
 
-type TabKey = 'analytics' | 'recommendations' | 'keywords'
+type TabKey = 'analytics' | 'recommendations' | 'keywords' | 'competitors'
 
 export default function App() {
   const [tab, setTab] = useState<TabKey>('analytics')
@@ -22,11 +23,15 @@ export default function App() {
         <button className={`px-3 py-2 rounded ${tab === 'keywords' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('keywords')}>
           Search Keywords
         </button>
+        <button className={`px-3 py-2 rounded ${tab === 'competitors' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('competitors')}>
+          Competitor Research
+        </button>
       </div>
 
       {tab === 'analytics' && <ProductAnalyticsPage />}
       {tab === 'recommendations' && <RecommendationsPage />}
       {tab === 'keywords' && <SearchKeywordsPage />}
+      {tab === 'competitors' && <CompetitorResearchPage />}
     </div>
   )
 }

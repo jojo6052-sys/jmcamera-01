@@ -125,3 +125,18 @@ CSVヘッダー例は「CSVサンプルヘッダー」を参照してくださ�
 - 価格条件・除外ワードの意味が画面だけで理解できるか。
 - RecommendationsのフィルタとCSV出力が期待どおりか。
 - 表示文言、ボタン配置、テーブル項目に不足がないか。
+
+## Competitor Research（eBayセラー分析 MVP）
+- `POST /api/competitors/analyze`: eBayセラーURLから出品中商品 / Sold Items を取得して `competitor_sellers` / `competitor_items` に保存
+- `GET /api/competitors`: 保存済みライバルセラーの件数・平均価格サマリを取得
+- `GET /api/competitors/{seller_id}/items`: ライバル商品の一覧を status / keyword で絞り込み
+- Frontendは `Competitor Research` タブでセラーURL投入、出品中 / Sold Items の取り込み、保存済みセラー比較、商品一覧確認に対応
+
+### eBayセラーURL例
+```text
+https://www.ebay.com/str/example-seller
+https://www.ebay.com/usr/example-seller
+https://www.ebay.com/sch/i.html?_ssn=example-seller
+```
+
+> 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。ページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。本格運用ではeBay公式API連携やレート制御を追加する予定です。
