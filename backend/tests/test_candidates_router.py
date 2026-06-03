@@ -231,6 +231,54 @@ def test_rank_and_score_filters_use_latest_score_only() -> None:
     assert high_score_response.json() == []
 
 
+def test_score_batch_endpoint_scores_candidates_in_request_order() -> None:
+    with TestingSessionLocal() as db:
+        candidate_a = _create_candidate(db, auction_id="batch-a")
+        candidate_b = _create_candidate(db, auction_id="batch-b")
+        candidate_a_id = candidate_a.id
+        candidate_b_id = candidate_b.id
+
+    response = client.post(
+        "/api/candidates/score-batch",
+        json={"candidate_ids": [candidate_b_id, candidate_a_id]},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [row["candidate_id"] for row in payload] == [candidate_b_id, candidate_a_id]
+
+    with TestingSessionLocal() as db:
+        rows = db.query(RecommendationScore).order_by(RecommendationScore.candidate_id.asc()).all()
+        assert len(rows) == 2
+
+
+def test_score_batch_endpoint_rejects_duplicate_candidate_ids() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="batch-duplicate")
+        candidate_id = candidate.id
+
+    response = client.post(
+        "/api/candidates/score-batch",
+        json={"candidate_ids": [candidate_id, candidate_id]},
+    )
+
+    assert response.status_code == 422
+
+
+def test_score_batch_endpoint_returns_missing_candidate_ids() -> None:
+    with TestingSessionLocal() as db:
+        candidate = _create_candidate(db, auction_id="batch-missing")
+        candidate_id = candidate.id
+
+    response = client.post(
+        "/api/candidates/score-batch",
+        json={"candidate_ids": [candidate_id, 999999]},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "candidates not found: [999999]"
+
+
 def test_feedback_endpoint_updates_candidate_status() -> None:
     with TestingSessionLocal() as db:
         candidate = _create_candidate(db, auction_id="feedback-status-1")

@@ -43,6 +43,7 @@ export default function RecommendationsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [scores, setScores] = useState<Record<number, RecommendationScore>>({})
+  const [scoringAll, setScoringAll] = useState(false)
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
@@ -80,6 +81,25 @@ export default function RecommendationsPage() {
       setScores((prev) => ({ ...prev, [candidateId]: score }))
     } catch {
       setError('推薦スコアの計算に失敗しました')
+    }
+  }
+
+  async function recalcVisibleScores() {
+    if (candidates.length === 0) return
+    setScoringAll(true)
+    setError('')
+    try {
+      const batchScores = await apiPost<RecommendationScore[]>('/api/candidates/score-batch', {
+        candidate_ids: candidates.map((candidate) => candidate.id),
+      })
+      setScores((prev) => ({
+        ...prev,
+        ...Object.fromEntries(batchScores.map((score) => [score.candidate_id, score])),
+      }))
+    } catch {
+      setError('表示中候補の一括スコア計算に失敗しました')
+    } finally {
+      setScoringAll(false)
     }
   }
 
@@ -156,6 +176,13 @@ export default function RecommendationsPage() {
           </div>
 
           <button className="px-3 py-2 bg-slate-800 text-white rounded" onClick={loadCandidates}>検索</button>
+          <button
+            className="px-3 py-2 bg-indigo-700 text-white rounded disabled:cursor-not-allowed disabled:bg-indigo-300"
+            disabled={scoringAll || candidates.length === 0}
+            onClick={recalcVisibleScores}
+          >
+            {scoringAll ? '一括スコア計算中...' : '表示中を一括スコア'}
+          </button>
           <a className="px-3 py-2 bg-emerald-700 text-white rounded" href={exportUrl}>CSV出力</a>
         </div>
       </div>

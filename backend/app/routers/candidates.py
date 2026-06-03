@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.recommendation_score import RecommendationScore
 from app.models.yahoo_candidate import YahooAuctionCandidate
-from app.schemas.candidates import CandidateRead
+from app.schemas.candidates import CandidateBulkScoreRequest, CandidateRead
 from app.schemas.scores import RecommendationScoreRead
 from app.services.scoring import compute_recommendation
 
@@ -83,6 +83,26 @@ def list_candidates(
     return attach_latest_scores(db, candidates)
 
 
+def upsert_recommendation_score(db: Session, candidate: YahooAuctionCandidate) -> RecommendationScore:
+    computed = compute_recommendation(candidate)
+
+    score = (
+        db.query(RecommendationScore)
+        .filter(RecommendationScore.candidate_id == candidate.id)
+        .order_by(RecommendationScore.id.desc())
+        .first()
+    )
+
+    if score is None:
+        score = RecommendationScore(candidate_id=candidate.id, **computed)
+        db.add(score)
+    else:
+        for key, value in computed.items():
+            setattr(score, key, value)
+
+    return score
+
+
 @router.get('/export.csv')
 def export_candidates_csv(
     db: Session = Depends(get_db),
@@ -127,6 +147,25 @@ def export_candidates_csv(
     )
 
 
+@router.post('/score-batch', response_model=list[RecommendationScoreRead])
+def score_candidates_batch(payload: CandidateBulkScoreRequest, db: Session = Depends(get_db)):
+    candidates = (
+        db.query(YahooAuctionCandidate)
+        .filter(YahooAuctionCandidate.id.in_(payload.candidate_ids))
+        .all()
+    )
+    candidates_by_id = {candidate.id: candidate for candidate in candidates}
+    missing_ids = [candidate_id for candidate_id in payload.candidate_ids if candidate_id not in candidates_by_id]
+    if missing_ids:
+        raise HTTPException(status_code=404, detail=f'candidates not found: {missing_ids}')
+
+    scores = [upsert_recommendation_score(db, candidates_by_id[candidate_id]) for candidate_id in payload.candidate_ids]
+    db.commit()
+    for score in scores:
+        db.refresh(score)
+    return scores
+
+
 @router.get('/{candidate_id}', response_model=CandidateRead)
 def get_candidate(candidate_id: int, db: Session = Depends(get_db)):
     entity = db.get(YahooAuctionCandidate, candidate_id)
@@ -141,22 +180,7 @@ def score_candidate(candidate_id: int, db: Session = Depends(get_db)):
     if not candidate:
         raise HTTPException(status_code=404, detail='candidate not found')
 
-    computed = compute_recommendation(candidate)
-
-    score = (
-        db.query(RecommendationScore)
-        .filter(RecommendationScore.candidate_id == candidate_id)
-        .order_by(RecommendationScore.created_at.desc())
-        .first()
-    )
-
-    if score is None:
-        score = RecommendationScore(candidate_id=candidate_id, **computed)
-        db.add(score)
-    else:
-        for key, value in computed.items():
-            setattr(score, key, value)
-
+    score = upsert_recommendation_score(db, candidate)
     db.commit()
     db.refresh(score)
     return score

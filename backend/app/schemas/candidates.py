@@ -19,6 +19,16 @@ class YahooSearchRequest(BaseModel):
         return self
 
 
+class CandidateBulkScoreRequest(BaseModel):
+    candidate_ids: list[int] = Field(min_length=1, max_length=50)
+
+    @model_validator(mode='after')
+    def validate_unique_candidate_ids(self):
+        if len(set(self.candidate_ids)) != len(self.candidate_ids):
+            raise ValueError('candidate_ids must be unique')
+        return self
+
+
 class CandidateRead(BaseModel):
     id: int
     auction_id: str
