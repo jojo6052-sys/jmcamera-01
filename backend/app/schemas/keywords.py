@@ -1,8 +1,10 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class SearchKeywordBase(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     keyword: str
     category: str | None = None
     brand: str | None = None
@@ -16,6 +18,8 @@ class SearchKeywordCreate(SearchKeywordBase):
 
 
 class SearchKeywordUpdate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     keyword: str | None = None
     category: str | None = None
     brand: str | None = None
@@ -29,5 +33,4 @@ class SearchKeywordRead(SearchKeywordBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())

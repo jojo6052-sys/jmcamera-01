@@ -18,6 +18,7 @@ export default function SearchKeywordsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [fetchingKeywordId, setFetchingKeywordId] = useState<number | null>(null)
+  const [bulkFetching, setBulkFetching] = useState(false)
   const [fetchMessage, setFetchMessage] = useState('')
   const [candidateLimit, setCandidateLimit] = useState(10)
   const [minPrice, setMinPrice] = useState('')
@@ -77,23 +78,52 @@ export default function SearchKeywordsPage() {
     await load()
   }
 
+  function yahooSearchPayload(keyword: string) {
+    return {
+      keyword,
+      limit: candidateLimit,
+      min_price: minPrice ? Number(minPrice) : null,
+      max_price: maxPrice ? Number(maxPrice) : null,
+      exclude_words: excludeWords.split(',').map((word) => word.trim()).filter(Boolean),
+    }
+  }
+
   async function fetchCandidates(item: SearchKeyword) {
     setFetchingKeywordId(item.id)
     setError('')
     setFetchMessage('')
     try {
-      const candidates = await apiPost<Candidate[]>('/api/yahoo/search', {
-        keyword: item.keyword,
-        limit: candidateLimit,
-        min_price: minPrice ? Number(minPrice) : null,
-        max_price: maxPrice ? Number(maxPrice) : null,
-        exclude_words: excludeWords.split(',').map((word) => word.trim()).filter(Boolean),
-      })
+      const candidates = await apiPost<Candidate[]>('/api/yahoo/search', yahooSearchPayload(item.keyword))
       setFetchMessage(`${item.keyword}: ${candidates.length}件の候補を保存しました。Recommendationsで確認できます。`)
     } catch (err) {
       setError(`ヤフオク候補取得に失敗しました: ${err instanceof Error ? err.message : 'unknown error'}`)
     } finally {
       setFetchingKeywordId(null)
+    }
+  }
+
+  async function fetchActiveCandidates() {
+    const activeItems = items.filter((item) => item.active)
+    if (!activeItems.length) {
+      setError('有効なキーワードがありません')
+      return
+    }
+
+    setBulkFetching(true)
+    setError('')
+    setFetchMessage(`有効キーワード ${activeItems.length}件の候補取得を開始しました...`)
+
+    let total = 0
+    try {
+      for (const item of activeItems) {
+        const candidates = await apiPost<Candidate[]>('/api/yahoo/search', yahooSearchPayload(item.keyword))
+        total += candidates.length
+      }
+      setFetchMessage(`有効キーワード ${activeItems.length}件から合計${total}件の候補を保存しました。Recommendationsで確認できます。`)
+    } catch (err) {
+      setError(`一括候補取得に失敗しました: ${err instanceof Error ? err.message : 'unknown error'}`)
+    } finally {
+      setBulkFetching(false)
     }
   }
 
@@ -131,7 +161,16 @@ export default function SearchKeywordsPage() {
             <input className="border rounded px-2 py-2 w-full mt-1" value={excludeWords} onChange={(e) => setExcludeWords(e.target.value)} />
           </label>
         </div>
-        <p className="text-xs text-slate-500">各キーワード行の「候補取得」から、この条件で候補を保存します。</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            className="px-3 py-2 bg-emerald-700 text-white rounded disabled:bg-slate-400"
+            disabled={bulkFetching || loading || !items.some((item) => item.active)}
+            onClick={fetchActiveCandidates}
+          >
+            {bulkFetching ? '一括取得中...' : '有効キーワードを一括候補取得'}
+          </button>
+          <p className="text-xs text-slate-500">各キーワード行の「候補取得」または一括候補取得から、この条件で候補を保存します。</p>
+        </div>
       </div>
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
@@ -158,13 +197,13 @@ export default function SearchKeywordsPage() {
               <td className="p-2">{item.priority}</td>
               <td className="p-2">{item.active ? 'ON' : 'OFF'}</td>
               <td className="p-2 space-x-2">
-                <button className="px-2 py-1 bg-emerald-700 text-white rounded disabled:bg-slate-400" disabled={fetchingKeywordId === item.id} onClick={() => fetchCandidates(item)}>
+                <button className="px-2 py-1 bg-emerald-700 text-white rounded disabled:bg-slate-400" disabled={bulkFetching || fetchingKeywordId === item.id} onClick={() => fetchCandidates(item)}>
                   {fetchingKeywordId === item.id ? '取得中...' : '候補取得'}
                 </button>
-                <button className="px-2 py-1 bg-indigo-600 text-white rounded" onClick={() => toggleActive(item)}>
+                <button className="px-2 py-1 bg-indigo-600 text-white rounded disabled:bg-slate-400" disabled={bulkFetching || fetchingKeywordId === item.id} onClick={() => toggleActive(item)}>
                   Toggle
                 </button>
-                <button className="px-2 py-1 bg-rose-600 text-white rounded" onClick={() => remove(item)}>
+                <button className="px-2 py-1 bg-rose-600 text-white rounded disabled:bg-slate-400" disabled={bulkFetching || fetchingKeywordId === item.id} onClick={() => remove(item)}>
                   Delete
                 </button>
               </td>
