@@ -78,6 +78,20 @@ export default function SearchKeywordsPage() {
     await load()
   }
 
+  function validateYahooSearchConditions() {
+    if (candidateLimit < 1 || candidateLimit > 50) {
+      return '取得件数は1〜50の範囲で入力してください'
+    }
+
+    const min = minPrice ? Number(minPrice) : null
+    const max = maxPrice ? Number(maxPrice) : null
+    if (min !== null && max !== null && min > max) {
+      return '最低価格は最高価格以下にしてください'
+    }
+
+    return ''
+  }
+
   function yahooSearchPayload(keyword: string) {
     return {
       keyword,
@@ -89,6 +103,13 @@ export default function SearchKeywordsPage() {
   }
 
   async function fetchCandidates(item: SearchKeyword) {
+    const validationError = validateYahooSearchConditions()
+    if (validationError) {
+      setError(validationError)
+      setFetchMessage('')
+      return
+    }
+
     setFetchingKeywordId(item.id)
     setError('')
     setFetchMessage('')
@@ -103,6 +124,13 @@ export default function SearchKeywordsPage() {
   }
 
   async function fetchActiveCandidates() {
+    const validationError = validateYahooSearchConditions()
+    if (validationError) {
+      setError(validationError)
+      setFetchMessage('')
+      return
+    }
+
     const activeItems = items.filter((item) => item.active)
     if (!activeItems.length) {
       setError('有効なキーワードがありません')

@@ -1,14 +1,20 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class YahooSearchRequest(BaseModel):
-    keyword: str
-    limit: int = 20
+    keyword: str = Field(min_length=1)
+    limit: int = Field(default=20, ge=1, le=50)
     min_price: int | None = Field(default=None, ge=0)
     max_price: int | None = Field(default=None, ge=0)
     exclude_words: list[str] = Field(default_factory=list)
+
+    @model_validator(mode='after')
+    def validate_price_range(self):
+        if self.min_price is not None and self.max_price is not None and self.min_price > self.max_price:
+            raise ValueError('min_price must be less than or equal to max_price')
+        return self
 
 
 class CandidateRead(BaseModel):
