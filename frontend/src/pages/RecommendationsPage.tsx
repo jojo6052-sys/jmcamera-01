@@ -45,6 +45,7 @@ export default function RecommendationsPage() {
   const [scores, setScores] = useState<Record<number, RecommendationScore>>({})
   const [scoringAll, setScoringAll] = useState(false)
   const [batchFeedbacking, setBatchFeedbacking] = useState<FeedbackRequest['user_decision'] | ''>('')
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<Set<number>>(new Set())
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams()
@@ -63,6 +64,10 @@ export default function RecommendationsPage() {
     try {
       const data = await apiGet<Candidate[]>(`/api/candidates${queryString}`)
       setCandidates(data)
+      setSelectedCandidateIds((prev) => {
+        const loadedIds = new Set(data.map((candidate) => candidate.id))
+        return new Set([...prev].filter((candidateId) => loadedIds.has(candidateId)))
+      })
     } catch {
       setError('候補一覧の取得に失敗しました')
       setCandidates([])
@@ -75,6 +80,39 @@ export default function RecommendationsPage() {
     loadCandidates()
   }, [])
 
+  const visibleCandidateIds = useMemo(() => candidates.map((candidate) => candidate.id), [candidates])
+  const selectedVisibleCandidateIds = useMemo(
+    () => visibleCandidateIds.filter((candidateId) => selectedCandidateIds.has(candidateId)),
+    [visibleCandidateIds, selectedCandidateIds],
+  )
+  const batchTargetCandidateIds = selectedVisibleCandidateIds.length > 0 ? selectedVisibleCandidateIds : visibleCandidateIds
+  const allVisibleSelected = visibleCandidateIds.length > 0 && selectedVisibleCandidateIds.length === visibleCandidateIds.length
+  const selectedCount = selectedVisibleCandidateIds.length
+
+  function toggleCandidateSelected(candidateId: number) {
+    setSelectedCandidateIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(candidateId)) {
+        next.delete(candidateId)
+      } else {
+        next.add(candidateId)
+      }
+      return next
+    })
+  }
+
+  function toggleAllVisibleSelected() {
+    setSelectedCandidateIds((prev) => {
+      const next = new Set(prev)
+      if (allVisibleSelected) {
+        visibleCandidateIds.forEach((candidateId) => next.delete(candidateId))
+      } else {
+        visibleCandidateIds.forEach((candidateId) => next.add(candidateId))
+      }
+      return next
+    })
+  }
+
   async function recalcScore(candidateId: number) {
     setError('')
     try {
@@ -86,12 +124,12 @@ export default function RecommendationsPage() {
   }
 
   async function recalcVisibleScores() {
-    if (candidates.length === 0) return
+    if (batchTargetCandidateIds.length === 0) return
     setScoringAll(true)
     setError('')
     try {
       const batchScores = await apiPost<RecommendationScore[]>('/api/candidates/score-batch', {
-        candidate_ids: candidates.map((candidate) => candidate.id),
+        candidate_ids: batchTargetCandidateIds,
       })
       setScores((prev) => ({
         ...prev,
@@ -105,12 +143,12 @@ export default function RecommendationsPage() {
   }
 
   async function sendVisibleFeedback(user_decision: FeedbackRequest['user_decision']) {
-    if (candidates.length === 0) return
+    if (batchTargetCandidateIds.length === 0) return
     setBatchFeedbacking(user_decision)
     setError('')
     try {
       await apiPost('/api/candidates/feedback-batch', {
-        candidate_ids: candidates.map((candidate) => candidate.id),
+        candidate_ids: batchTargetCandidateIds,
         user_decision,
       })
       await loadCandidates()
@@ -196,24 +234,24 @@ export default function RecommendationsPage() {
           <button className="px-3 py-2 bg-slate-800 text-white rounded" onClick={loadCandidates}>検索</button>
           <button
             className="px-3 py-2 bg-indigo-700 text-white rounded disabled:cursor-not-allowed disabled:bg-indigo-300"
-            disabled={scoringAll || candidates.length === 0}
+            disabled={scoringAll || batchTargetCandidateIds.length === 0}
             onClick={recalcVisibleScores}
           >
-            {scoringAll ? '一括スコア計算中...' : '表示中を一括スコア'}
+            {scoringAll ? '一括スコア計算中...' : `${selectedCount > 0 ? '選択中' : '表示中'}を一括スコア`}
           </button>
           <button
             className="px-3 py-2 bg-amber-700 text-white rounded disabled:cursor-not-allowed disabled:bg-amber-300"
-            disabled={Boolean(batchFeedbacking) || candidates.length === 0}
+            disabled={Boolean(batchFeedbacking) || batchTargetCandidateIds.length === 0}
             onClick={() => sendVisibleFeedback('review')}
           >
-            {batchFeedbacking === 'review' ? '一括要確認中...' : '表示中を一括要確認'}
+            {batchFeedbacking === 'review' ? '一括要確認中...' : `${selectedCount > 0 ? '選択中' : '表示中'}を一括要確認`}
           </button>
           <button
             className="px-3 py-2 bg-slate-700 text-white rounded disabled:cursor-not-allowed disabled:bg-slate-300"
-            disabled={Boolean(batchFeedbacking) || candidates.length === 0}
+            disabled={Boolean(batchFeedbacking) || batchTargetCandidateIds.length === 0}
             onClick={() => sendVisibleFeedback('skip')}
           >
-            {batchFeedbacking === 'skip' ? '一括見送り中...' : '表示中を一括見送り'}
+            {batchFeedbacking === 'skip' ? '一括見送り中...' : `${selectedCount > 0 ? '選択中' : '表示中'}を一括見送り`}
           </button>
           <a className="px-3 py-2 bg-emerald-700 text-white rounded" href={exportUrl}>CSV出力</a>
         </div>
@@ -221,11 +259,24 @@ export default function RecommendationsPage() {
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
       {loading && <div className="text-slate-600 text-sm">loading...</div>}
+      {!loading && candidates.length > 0 && (
+        <div className="text-xs text-slate-600">
+          {selectedCount > 0 ? `${selectedCount}件を選択中。一括操作は選択中のみ対象です。` : '未選択の場合、一括操作は表示中の全候補が対象です。'}
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full bg-white rounded shadow text-sm">
           <thead>
             <tr className="text-left border-b">
+              <th className="p-2">
+                <input
+                  aria-label="表示中候補をすべて選択"
+                  checked={allVisibleSelected}
+                  onChange={toggleAllVisibleSelected}
+                  type="checkbox"
+                />
+              </th>
               <th className="p-2">Title</th>
               <th className="p-2">Current</th>
               <th className="p-2">Seller</th>
@@ -240,6 +291,14 @@ export default function RecommendationsPage() {
               const score = scores[c.id] ?? c.latest_score
               return (
                 <tr key={c.id} className="border-b align-top">
+                  <td className="p-2">
+                    <input
+                      aria-label={`${c.title} を選択`}
+                      checked={selectedCandidateIds.has(c.id)}
+                      onChange={() => toggleCandidateSelected(c.id)}
+                      type="checkbox"
+                    />
+                  </td>
                   <td className="p-2">
                     <a href={c.url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline">
                       {c.title}
