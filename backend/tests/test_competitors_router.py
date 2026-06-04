@@ -288,6 +288,41 @@ def test_analyze_competitor_records_blocked_status_without_raw_httperror(monkeyp
         restore_db_override(previous_override)
 
 
+def test_import_competitor_html_saves_sold_items_from_uploaded_file() -> None:
+    previous_override = with_test_db_override()
+    try:
+        html = """
+        <ul>
+          <li class="s-item">
+            <a class="s-item__link" href="https://www.ebay.com/itm/Nikon-F3/123456789012"><span class="s-item__title">Nikon F3 Body</span></a>
+            <span class="s-item__price">US $299.99</span>
+            <div class="s-item__image-wrapper"><img src="https://i.ebayimg.com/images/nikon.jpg" /></div>
+          </li>
+        </ul>
+        """
+        response = client.post(
+            "/api/competitors/import-html",
+            data={"seller_url": "https://www.ebay.com/str/upload-seller", "item_status": "sold"},
+            files={"file": ("sold.html", html, "text/html")},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["seller"]["seller_username"] == "upload-seller"
+        assert payload["seller"]["fetch_status"] == "imported"
+        assert payload["seller"]["sold_count"] == 1
+        assert payload["items"][0]["title"] == "Nikon F3 Body"
+        assert payload["items"][0]["item_status"] == "sold"
+
+        with TestingSessionLocal() as db:
+            seller = db.query(CompetitorSeller).filter(CompetitorSeller.seller_username == "upload-seller").one()
+            item = db.query(CompetitorItem).filter(CompetitorItem.seller_id == seller.id).one()
+            assert item.external_item_id == "123456789012"
+            assert item.price == Decimal("299.99")
+    finally:
+        restore_db_override(previous_override)
+
+
 def test_competitor_items_can_be_filtered_by_status_and_keyword() -> None:
     previous_override = with_test_db_override()
     try:

@@ -168,3 +168,22 @@ EBAY_MARKETPLACE_ID=EBAY_US
 - `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` が設定されている場合、`include_active=true` の出品中商品は `GET https://api.ebay.com/buy/browse/v1/item_summary/search` を `filter=sellers:{seller_username}` で呼び出します。
 - `include_sold=true` のSold Itemsは、現時点では引き続き公開ページ解析のfallbackです。公式APIでSold履歴を安定取得するには追加API権限または代替インポート導線が必要です。
 - `EBAY_CLIENT_SECRET` は秘密情報なので、チャット・PR・Gitには貼らず、ローカル `.env` やデプロイ先のSecretにのみ保存してください。
+
+## eBay保存HTMLインポート（Sold Items代替導線）
+eBay側の403ブロックや公式API権限不足でSold Itemsを直接取得できない場合、ブラウザで保存したHTMLを取り込めます。
+
+1. eBayでライバルセラーのSold Items画面を開く。
+2. ブラウザでページをHTMLとして保存する。
+3. `Competitor Research` タブで同じセラーURLを入力する。
+4. `保存HTMLから取り込み` で `Sold Items HTML` を選び、保存したHTMLをアップロードする。
+
+APIから直接取り込む場合:
+
+```bash
+curl -X POST http://localhost:8001/api/competitors/import-html \
+  -F "seller_url=https://www.ebay.com/str/example-seller" \
+  -F "item_status=sold" \
+  -F "file=@sold-items.html"
+```
+
+> 保存HTMLインポートは、画面で見えている範囲をリサーチDBに取り込むためのMVP代替導線です。大量取得や継続監視はeBay公式API/許可された連携方式を優先してください。

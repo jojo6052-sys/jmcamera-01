@@ -1,14 +1,14 @@
 from datetime import datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.competitor import CompetitorItem, CompetitorSeller
 from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorItemRead, CompetitorSellerRead
-from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, extract_ebay_seller_username, fetch_competitor_items
+from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, build_ebay_seller_search_url, extract_ebay_seller_username, fetch_competitor_items, _parse_ebay_items
 
 router = APIRouter(prefix="/api/competitors", tags=["competitors"])
 
@@ -42,6 +42,43 @@ def analyze_competitor(payload: CompetitorAnalyzeRequest, db: Session = Depends(
         seller_url=seller_url,
         fetch_status=fetch_status,
         last_error=last_error,
+    )
+    items = upsert_competitor_items(db, seller=seller, payloads=fetched_items)
+    refresh_competitor_summary(db, seller)
+    db.commit()
+    db.refresh(seller)
+    for item in items:
+        db.refresh(item)
+
+    return CompetitorAnalyzeResponse(seller=seller, items=items)
+
+
+@router.post("/import-html", response_model=CompetitorAnalyzeResponse)
+async def import_competitor_html(
+    seller_url: str = Form(...),
+    item_status: str = Form(..., pattern="^(active|sold)$"),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> CompetitorAnalyzeResponse:
+    try:
+        seller_username = extract_ebay_seller_username(seller_url)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    raw = await file.read()
+    try:
+        html = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        html = raw.decode("utf-8", errors="ignore")
+
+    source_url = build_ebay_seller_search_url(seller_username, item_status)
+    fetched_items = _parse_ebay_items(html, source_url=source_url, item_status=item_status, limit=100)
+    seller = upsert_competitor_seller(
+        db,
+        seller_username=seller_username,
+        seller_url=seller_url,
+        fetch_status="imported",
+        last_error=None,
     )
     items = upsert_competitor_items(db, seller=seller, payloads=fetched_items)
     refresh_competitor_summary(db, seller)

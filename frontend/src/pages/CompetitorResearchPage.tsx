@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { apiGet, apiPost } from '../api/client'
+import { apiGet, apiPost, apiPostForm } from '../api/client'
 import type { CompetitorAnalyzeResponse, CompetitorItem, CompetitorSeller } from '../types/competitors'
 
 export default function CompetitorResearchPage() {
@@ -7,6 +7,9 @@ export default function CompetitorResearchPage() {
   const [limit, setLimit] = useState(40)
   const [includeActive, setIncludeActive] = useState(true)
   const [includeSold, setIncludeSold] = useState(true)
+  const [htmlFile, setHtmlFile] = useState<File | null>(null)
+  const [htmlStatus, setHtmlStatus] = useState<'active' | 'sold'>('sold')
+  const [importingHtml, setImportingHtml] = useState(false)
   const [sellers, setSellers] = useState<CompetitorSeller[]>([])
   const [items, setItems] = useState<CompetitorItem[]>([])
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null)
@@ -69,6 +72,29 @@ export default function CompetitorResearchPage() {
     }
   }
 
+  async function importSavedHtml() {
+    if (!htmlFile) return
+    setError(null)
+    setMessage(null)
+    setImportingHtml(true)
+    try {
+      const form = new FormData()
+      form.append('seller_url', sellerUrl)
+      form.append('item_status', htmlStatus)
+      form.append('file', htmlFile)
+      const payload = await apiPostForm<CompetitorAnalyzeResponse>('/api/competitors/import-html', form)
+      setSelectedSellerId(payload.seller.id)
+      setItems(payload.items)
+      setMessage(`${payload.seller.seller_username} の保存HTMLから ${payload.items.length}件を取り込みました`)
+      await loadSellers()
+    } catch (e) {
+      setError(e instanceof Error ? `保存HTMLインポートに失敗しました: ${e.message}` : '保存HTMLインポートに失敗しました')
+    } finally {
+      setImportingHtml(false)
+    }
+  }
+
+
   const selectedSeller = useMemo(
     () => sellers.find((seller) => seller.id === selectedSellerId) ?? null,
     [selectedSellerId, sellers],
@@ -110,6 +136,26 @@ export default function CompetitorResearchPage() {
           </button>
         </div>
       </div>
+
+      <div className="bg-white p-4 rounded shadow space-y-3">
+        <div>
+          <h3 className="font-semibold">保存HTMLから取り込み</h3>
+          <p className="text-sm text-slate-600">
+            eBay画面でSold Itemsを表示して保存したHTMLをアップロードすると、403ブロック時でも履歴を取り込めます。上のセラーURLを入力してから実行してください。
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <select className="border rounded px-2 py-2" value={htmlStatus} onChange={(e) => setHtmlStatus(e.target.value as 'active' | 'sold')}>
+            <option value="sold">Sold Items HTML</option>
+            <option value="active">出品中HTML</option>
+          </select>
+          <input className="border rounded px-2 py-2" type="file" accept=".html,.htm,text/html" onChange={(e) => setHtmlFile(e.target.files?.[0] ?? null)} />
+          <button className="px-3 py-2 bg-indigo-700 text-white rounded disabled:bg-indigo-300" disabled={importingHtml || !sellerUrl.trim() || !htmlFile} onClick={importSavedHtml}>
+            {importingHtml ? 'HTML取り込み中...' : '保存HTMLを取り込み'}
+          </button>
+        </div>
+      </div>
+
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
       {message && <div className="text-green-700 text-sm">{message}</div>}
