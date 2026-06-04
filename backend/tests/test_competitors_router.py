@@ -1,3 +1,5 @@
+import csv
+import io
 from collections.abc import Generator
 from decimal import Decimal
 
@@ -342,5 +344,34 @@ def test_competitor_items_can_be_filtered_by_status_and_keyword() -> None:
         rows = response.json()
         assert len(rows) == 1
         assert rows[0]["title"] == "Nikon F3"
+    finally:
+        restore_db_override(previous_override)
+
+
+def test_export_competitor_items_csv_applies_status_and_keyword_filters() -> None:
+    previous_override = with_test_db_override()
+    try:
+        with TestingSessionLocal() as db:
+            seller = CompetitorSeller(marketplace="ebay", seller_username="csv-seller", seller_url="https://www.ebay.com/str/csv-seller", fetch_status="ok")
+            db.add(seller)
+            db.flush()
+            db.add_all([
+                CompetitorItem(seller_id=seller.id, marketplace="ebay", external_item_id="sold-1", title="Nikon F3 Body", item_url="https://example.com/sold-1", item_status="sold", price=Decimal("299.99"), currency="USD", source_url="https://example.com/sold", raw={}),
+                CompetitorItem(seller_id=seller.id, marketplace="ebay", external_item_id="active-1", title="Nikon F3 Active", item_url="https://example.com/active-1", item_status="active", price=Decimal("399.99"), currency="USD", source_url="https://example.com/active", raw={}),
+                CompetitorItem(seller_id=seller.id, marketplace="ebay", external_item_id="sold-2", title="Canon AE-1", item_url="https://example.com/sold-2", item_status="sold", price=Decimal("199.99"), currency="USD", source_url="https://example.com/sold", raw={}),
+            ])
+            db.commit()
+            seller_id = seller.id
+
+        response = client.get(f"/api/competitors/{seller_id}/export.csv?item_status=sold&keyword=Nikon")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/csv")
+        assert "competitor-csv-seller-items.csv" in response.headers["content-disposition"]
+        rows = list(csv.DictReader(io.StringIO(response.text)))
+        assert len(rows) == 1
+        assert rows[0]["seller_username"] == "csv-seller"
+        assert rows[0]["external_item_id"] == "sold-1"
+        assert rows[0]["title"] == "Nikon F3 Body"
+        assert rows[0]["price"] == "299.99"
     finally:
         restore_db_override(previous_override)

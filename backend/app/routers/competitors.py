@@ -1,7 +1,10 @@
+import csv
+import io
 from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -95,6 +98,57 @@ def list_competitor_sellers(db: Session = Depends(get_db)) -> list[CompetitorSel
     return db.query(CompetitorSeller).order_by(CompetitorSeller.updated_at.desc()).limit(100).all()
 
 
+@router.get("/{seller_id}/export.csv")
+def export_competitor_items_csv(
+    seller_id: int,
+    db: Session = Depends(get_db),
+    item_status: str | None = Query(default=None, pattern="^(active|sold)$"),
+    keyword: str | None = None,
+):
+    seller = db.get(CompetitorSeller, seller_id)
+    if seller is None:
+        raise HTTPException(status_code=404, detail="competitor seller not found")
+
+    rows = _competitor_items_query(db, seller_id=seller_id, item_status=item_status, keyword=keyword).limit(1000).all()
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow([
+        "seller_username",
+        "item_status",
+        "title",
+        "price",
+        "currency",
+        "item_url",
+        "image_url",
+        "external_item_id",
+        "source_url",
+        "first_seen_at",
+        "last_seen_at",
+    ])
+    for item in rows:
+        writer.writerow([
+            seller.seller_username,
+            item.item_status,
+            item.title,
+            item.price,
+            item.currency,
+            item.item_url,
+            item.image_url,
+            item.external_item_id,
+            item.source_url,
+            item.first_seen_at.isoformat() if item.first_seen_at else None,
+            item.last_seen_at.isoformat() if item.last_seen_at else None,
+        ])
+
+    out.seek(0)
+    filename = f"competitor-{seller.seller_username}-items.csv"
+    return StreamingResponse(
+        iter([out.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.get("/{seller_id}/items", response_model=list[CompetitorItemRead])
 def list_competitor_items(
     seller_id: int,
@@ -102,12 +156,16 @@ def list_competitor_items(
     item_status: str | None = Query(default=None, pattern="^(active|sold)$"),
     keyword: str | None = None,
 ) -> list[CompetitorItem]:
+    return _competitor_items_query(db, seller_id=seller_id, item_status=item_status, keyword=keyword).limit(200).all()
+
+
+def _competitor_items_query(db: Session, *, seller_id: int, item_status: str | None, keyword: str | None):
     q = db.query(CompetitorItem).filter(CompetitorItem.seller_id == seller_id)
     if item_status:
         q = q.filter(CompetitorItem.item_status == item_status)
     if keyword:
         q = q.filter(CompetitorItem.title.ilike(f"%{keyword.strip()}%"))
-    return q.order_by(CompetitorItem.last_seen_at.desc()).limit(200).all()
+    return q.order_by(CompetitorItem.last_seen_at.desc())
 
 
 def upsert_competitor_seller(

@@ -130,7 +130,8 @@ CSVヘッダー例は「CSVサンプルヘッダー」を参照してくださ�
 - `POST /api/competitors/analyze`: eBayセラーURLから出品中商品 / Sold Items を取得して `competitor_sellers` / `competitor_items` に保存
 - `GET /api/competitors`: 保存済みライバルセラーの件数・平均価格サマリを取得
 - `GET /api/competitors/{seller_id}/items`: ライバル商品の一覧を status / keyword で絞り込み
-- Frontendは `Competitor Research` タブでセラーURL投入、出品中 / Sold Items の取り込み、保存済みセラー比較、商品一覧確認に対応
+- `GET /api/competitors/{seller_id}/export.csv`: 現在のライバル商品フィルタをCSV出力
+- Frontendは `Competitor Research` タブでセラーURL投入、出品中 / Sold Items の取り込み、保存済みセラー比較、商品一覧確認、CSV出力に対応
 
 ### eBayセラーURL例
 ```text

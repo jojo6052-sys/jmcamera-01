@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { apiGet, apiPost, apiPostForm } from '../api/client'
 import type { CompetitorAnalyzeResponse, CompetitorItem, CompetitorSeller } from '../types/competitors'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+
 export default function CompetitorResearchPage() {
   const [sellerUrl, setSellerUrl] = useState('')
   const [limit, setLimit] = useState(40)
@@ -102,6 +104,14 @@ export default function CompetitorResearchPage() {
 
   const activeCount = items.filter((item) => item.item_status === 'active').length
   const soldCount = items.filter((item) => item.item_status === 'sold').length
+  const exportItemsUrl = useMemo(() => {
+    if (!selectedSellerId) return '#'
+    const params = new URLSearchParams()
+    if (statusFilter !== 'all') params.set('item_status', statusFilter)
+    if (keyword.trim()) params.set('keyword', keyword.trim())
+    const query = params.toString()
+    return `${API_BASE_URL}/api/competitors/${selectedSellerId}/export.csv${query ? `?${query}` : ''}`
+  }, [keyword, selectedSellerId, statusFilter])
 
   return (
     <div className="space-y-4">
@@ -191,6 +201,7 @@ export default function CompetitorResearchPage() {
               </select>
               <input className="border rounded px-2 py-2" placeholder="キーワード" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
               <button className="px-3 py-2 bg-slate-700 text-white rounded" disabled={!selectedSellerId} onClick={() => selectedSellerId && loadItems(selectedSellerId)}>検索</button>
+              <a className={`px-3 py-2 rounded ${selectedSellerId ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-500 pointer-events-none'}`} href={exportItemsUrl}>CSV出力</a>
             </div>
           </div>
 
