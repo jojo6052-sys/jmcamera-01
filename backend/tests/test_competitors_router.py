@@ -5,10 +5,21 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.config import settings
 from app.database import Base, get_db
 from app.main import app
 from app.models.competitor import CompetitorItem, CompetitorSeller
-from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, _fetch_html, _parse_ebay_items, extract_ebay_seller_username
+from app.services.ebay_research import (
+    CompetitorItemPayload,
+    EbayFetchBlockedError,
+    _fetch_html,
+    _parse_browse_api_items,
+    _parse_ebay_items,
+    extract_ebay_seller_username,
+    fetch_active_items_with_browse_api,
+    fetch_competitor_items,
+    get_ebay_application_token,
+)
 
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_competitors_router.db"
@@ -47,6 +58,123 @@ def test_extract_ebay_seller_username_from_common_urls() -> None:
     assert extract_ebay_seller_username("https://www.ebay.com/str/jmcamera") == "jmcamera"
     assert extract_ebay_seller_username("https://www.ebay.com/usr/camera-pro") == "camera-pro"
     assert extract_ebay_seller_username("https://www.ebay.com/sch/i.html?_ssn=top-seller") == "top-seller"
+
+
+def test_get_ebay_application_token_uses_client_credentials(monkeypatch) -> None:
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"access_token": "token-123"}
+
+    def fake_post(url, headers, data, timeout):
+        captured.update({"url": url, "headers": headers, "data": data, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr(settings, "ebay_client_id", "client-id")
+    monkeypatch.setattr(settings, "ebay_client_secret", "client-secret")
+    monkeypatch.setattr("app.services.ebay_research.requests.post", fake_post)
+
+    assert get_ebay_application_token() == "token-123"
+    assert captured["url"] == "https://api.ebay.com/identity/v1/oauth2/token"
+    assert captured["headers"]["Authorization"].startswith("Basic ")
+    assert captured["data"] == {"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"}
+
+
+def test_parse_browse_api_items_maps_active_item_payload() -> None:
+    rows = _parse_browse_api_items(
+        {
+            "itemSummaries": [
+                {
+                    "itemId": "v1|123|0",
+                    "title": "Canon EOS 5D",
+                    "itemWebUrl": "https://www.ebay.com/itm/123",
+                    "image": {"imageUrl": "https://i.ebayimg.com/images/canon.jpg"},
+                    "price": {"value": "499.99", "currency": "USD"},
+                }
+            ]
+        },
+        source_url="https://api.ebay.com/buy/browse/v1/item_summary/search",
+        limit=10,
+    )
+
+    assert len(rows) == 1
+    assert rows[0].external_item_id == "v1|123|0"
+    assert rows[0].title == "Canon EOS 5D"
+    assert rows[0].item_status == "active"
+    assert rows[0].price == Decimal("499.99")
+    assert rows[0].currency == "USD"
+    assert rows[0].image_url == "https://i.ebayimg.com/images/canon.jpg"
+
+
+def test_fetch_active_items_with_browse_api_filters_by_seller(monkeypatch) -> None:
+    captured = {}
+
+    class FakeResponse:
+        url = "https://api.ebay.com/buy/browse/v1/item_summary/search?filter=sellers%3A%7Bcamera-pro%7D"
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "itemSummaries": [
+                    {
+                        "itemId": "v1|456|0",
+                        "title": "Nikon F3",
+                        "itemHref": "https://api.ebay.com/buy/browse/v1/item/v1|456|0",
+                        "price": {"value": "299.00", "currency": "USD"},
+                    }
+                ]
+            }
+
+    def fake_get(url, headers, params, timeout):
+        captured.update({"url": url, "headers": headers, "params": params, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr(settings, "ebay_marketplace_id", "EBAY_US")
+    monkeypatch.setattr("app.services.ebay_research.get_ebay_application_token", lambda: "token-123")
+    monkeypatch.setattr("app.services.ebay_research.requests.get", fake_get)
+
+    rows = fetch_active_items_with_browse_api("camera-pro", limit=25)
+
+    assert captured["url"] == "https://api.ebay.com/buy/browse/v1/item_summary/search"
+    assert captured["headers"]["Authorization"] == "Bearer token-123"
+    assert captured["headers"]["X-EBAY-C-MARKETPLACE-ID"] == "EBAY_US"
+    assert captured["params"] == {"filter": "sellers:{camera-pro}", "limit": 25}
+    assert rows[0].external_item_id == "v1|456|0"
+
+
+def test_fetch_competitor_items_uses_browse_api_for_active_when_credentials_exist(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "ebay_client_id", "client-id")
+    monkeypatch.setattr(settings, "ebay_client_secret", "client-secret")
+    monkeypatch.setattr(
+        "app.services.ebay_research.fetch_active_items_with_browse_api",
+        lambda seller_username, limit: [
+            CompetitorItemPayload(
+                external_item_id="api-active-1",
+                title="API Active Item",
+                normalized_title="api active item",
+                item_url="https://www.ebay.com/itm/api-active-1",
+                image_url=None,
+                price=Decimal("100.00"),
+                currency="USD",
+                item_status="active",
+                source_url="https://api.ebay.com/buy/browse/v1/item_summary/search",
+                raw={},
+            )
+        ],
+    )
+    monkeypatch.setattr("app.services.ebay_research._fetch_html", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("HTML fallback should not run for active-only API fetch")))
+
+    seller_username, rows = fetch_competitor_items("https://www.ebay.com/str/camera-pro", include_active=True, include_sold=False, limit=10)
+
+    assert seller_username == "camera-pro"
+    assert len(rows) == 1
+    assert rows[0].external_item_id == "api-active-1"
 
 
 def test_fetch_html_converts_ebay_403_to_blocked_error(monkeypatch) -> None:

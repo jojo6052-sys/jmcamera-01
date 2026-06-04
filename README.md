@@ -155,3 +155,16 @@ EBAY_MARKETPLACE_DELETION_ENDPOINT_URL=https://your-domain.example/api/ebay/mark
 ```
 
 > eBay Developer Portalに登録するendpointは外部から到達可能なHTTPS URLである必要があります。`localhost`やDocker内部URLは登録できません。
+
+## eBay Browse API連携（出品中商品の安定取得）
+Production keyset取得後は、以下を `.env` に設定するとCompetitor Researchの「出品中」取得でeBay Browse APIを優先します。
+
+```env
+EBAY_CLIENT_ID=ProductionのApp ID / Client ID
+EBAY_CLIENT_SECRET=ProductionのCert ID / Client Secret
+EBAY_MARKETPLACE_ID=EBAY_US
+```
+
+- `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` が設定されている場合、`include_active=true` の出品中商品は `GET https://api.ebay.com/buy/browse/v1/item_summary/search` を `filter=sellers:{seller_username}` で呼び出します。
+- `include_sold=true` のSold Itemsは、現時点では引き続き公開ページ解析のfallbackです。公式APIでSold履歴を安定取得するには追加API権限または代替インポート導線が必要です。
+- `EBAY_CLIENT_SECRET` は秘密情報なので、チャット・PR・Gitには貼らず、ローカル `.env` やデプロイ先のSecretにのみ保存してください。

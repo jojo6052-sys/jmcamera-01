@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import re
 import time
 from dataclasses import dataclass
@@ -9,6 +10,8 @@ from uuid import uuid4
 
 import requests
 from bs4 import BeautifulSoup
+
+from app.config import settings
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -21,6 +24,9 @@ REQUEST_HEADERS = {
     "Cache-Control": "no-cache",
 }
 EBAY_SEARCH_URL = "https://www.ebay.com/sch/i.html"
+EBAY_OAUTH_TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
+EBAY_BROWSE_SEARCH_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+EBAY_OAUTH_SCOPE = "https://api.ebay.com/oauth/api_scope"
 EBAY_BLOCKED_MESSAGE = (
     "eBay blocked this server-side request with HTTP 403 Forbidden. "
     "The seller URL is valid, but eBay is refusing automated access from this environment; "
@@ -81,13 +87,91 @@ def fetch_competitor_items(seller_url: str, *, include_active: bool = True, incl
     capped_limit = max(1, min(limit, 100))
     rows: list[CompetitorItemPayload] = []
 
-    for item_status in _requested_statuses(include_active=include_active, include_sold=include_sold):
-        source_url = build_ebay_seller_search_url(seller_username, item_status)
-        time.sleep(0.2)
-        html = _fetch_html(source_url)
-        rows.extend(_parse_ebay_items(html, source_url=source_url, item_status=item_status, limit=capped_limit))
+    if include_active and has_ebay_api_credentials():
+        rows.extend(fetch_active_items_with_browse_api(seller_username, limit=capped_limit))
+        include_active = False
+
+    if include_active or include_sold:
+        for item_status in _requested_statuses(include_active=include_active, include_sold=include_sold):
+            source_url = build_ebay_seller_search_url(seller_username, item_status)
+            time.sleep(0.2)
+            html = _fetch_html(source_url)
+            rows.extend(_parse_ebay_items(html, source_url=source_url, item_status=item_status, limit=capped_limit))
 
     return seller_username, rows[:capped_limit]
+
+
+def has_ebay_api_credentials() -> bool:
+    return bool(settings.ebay_client_id.strip() and settings.ebay_client_secret.strip())
+
+
+def fetch_active_items_with_browse_api(seller_username: str, *, limit: int) -> list[CompetitorItemPayload]:
+    token = get_ebay_application_token()
+    params = {
+        "filter": f"sellers:{{{seller_username}}}",
+        "limit": max(1, min(limit, 100)),
+    }
+    response = requests.get(
+        EBAY_BROWSE_SEARCH_URL,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-EBAY-C-MARKETPLACE-ID": settings.ebay_marketplace_id,
+            "Accept": "application/json",
+        },
+        params=params,
+        timeout=12,
+    )
+    response.raise_for_status()
+    return _parse_browse_api_items(response.json(), source_url=response.url, limit=limit)
+
+
+def get_ebay_application_token() -> str:
+    client_id = settings.ebay_client_id.strip()
+    client_secret = settings.ebay_client_secret.strip()
+    if not client_id or not client_secret:
+        raise ValueError("eBay API credentials are not configured")
+
+    credentials = base64.b64encode(f"{client_id}:{client_secret}".encode("utf-8")).decode("ascii")
+    response = requests.post(
+        EBAY_OAUTH_TOKEN_URL,
+        headers={
+            "Authorization": f"Basic {credentials}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data={
+            "grant_type": "client_credentials",
+            "scope": EBAY_OAUTH_SCOPE,
+        },
+        timeout=12,
+    )
+    response.raise_for_status()
+    token = response.json().get("access_token")
+    if not token:
+        raise ValueError("eBay OAuth response did not include access_token")
+    return token
+
+
+def _parse_browse_api_items(payload: dict, *, source_url: str, limit: int) -> list[CompetitorItemPayload]:
+    rows: list[CompetitorItemPayload] = []
+    for item in payload.get("itemSummaries", [])[:limit]:
+        title = item.get("title") or "Untitled eBay item"
+        price = item.get("price") or {}
+        image = item.get("image") or {}
+        rows.append(
+            CompetitorItemPayload(
+                external_item_id=item.get("itemId") or f"browse-{uuid4().hex[:12]}",
+                title=title,
+                normalized_title=_normalize_title(title),
+                item_url=item.get("itemWebUrl") or item.get("itemHref") or source_url,
+                image_url=image.get("imageUrl"),
+                price=_decimal_or_none(price.get("value")),
+                currency=price.get("currency"),
+                item_status="active",
+                source_url=source_url,
+                raw={"browse_api": item},
+            )
+        )
+    return rows
 
 
 def _requested_statuses(*, include_active: bool, include_sold: bool) -> list[str]:
@@ -189,3 +273,12 @@ def _parse_price(raw: str | None) -> tuple[Decimal | None, str | None]:
 
 def _normalize_title(title: str) -> str:
     return re.sub(r"\s+", " ", title).strip().lower()
+
+
+def _decimal_or_none(raw: str | int | float | None) -> Decimal | None:
+    if raw is None:
+        return None
+    try:
+        return Decimal(str(raw))
+    except InvalidOperation:
+        return None

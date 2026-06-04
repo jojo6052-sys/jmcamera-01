@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     ebay_marketplace_deletion_verification_token: str = ""
     ebay_marketplace_deletion_endpoint_url: str = ""
+    ebay_client_id: str = ""
+    ebay_client_secret: str = ""
+    ebay_marketplace_id: str = "EBAY_US"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
