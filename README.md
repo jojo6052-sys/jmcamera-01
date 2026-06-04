@@ -140,3 +140,18 @@ https://www.ebay.com/sch/i.html?_ssn=example-seller
 ```
 
 > 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。eBayが自動取得を403 Forbiddenで拒否した場合は `fetch_status=blocked`、その他のページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。本格運用ではeBay公式API連携やレート制御を追加する予定です。
+
+## eBay Marketplace Account Deletion endpoint
+Production keysetのcompliance対応用に、以下のendpointを用意しています。
+
+- `GET /api/ebay/marketplace-account-deletion`: eBayの`challenge_code`検証に対して`challengeResponse`を返す
+- `POST /api/ebay/marketplace-account-deletion`: account deletion通知を受け取り、payload内のusernameと一致する保存済みcompetitor sellerを削除
+
+`.env`には、eBay Developer Portalに入力する値と完全一致するHTTPS URLとverification tokenを設定してください。
+
+```env
+EBAY_MARKETPLACE_DELETION_VERIFICATION_TOKEN=任意の安全な検証トークン
+EBAY_MARKETPLACE_DELETION_ENDPOINT_URL=https://your-domain.example/api/ebay/marketplace-account-deletion
+```
+
+> eBay Developer Portalに登録するendpointは外部から到達可能なHTTPS URLである必要があります。`localhost`やDocker内部URLは登録できません。
