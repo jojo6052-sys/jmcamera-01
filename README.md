@@ -21,16 +21,27 @@ cp .env.example .env
 docker compose up --build
 ```
 
+`docker-compose.yml` には db / redis / backend / frontend の healthcheck を設定しているため、起動後は以下で状態を確認できます。
+
+```bash
+docker compose ps
+```
+
 ## 動作確認
 - Backend health: `http://localhost:8001/health`
 - API health: `http://localhost:8001/api/health`
-- Frontend: `http://localhost:5173`
+- Phase status API: `http://localhost:8001/api/phase/status`
+- Frontend: `http://localhost:5173`（初期表示は `Phase Status` タブ）
+- Compose services: `docker compose ps` で `healthy` / `running` を確認
 
-## Alembic
-初期マイグレーション適用（backend コンテナ内）:
+## Alembic / DBマイグレーション
+backendコンテナは起動時に `RUN_MIGRATIONS=true`（デフォルト）で `alembic upgrade head` を実行します。手動で再実行する場合は以下です。
+
 ```bash
 docker compose exec backend alembic upgrade head
 ```
+
+自動マイグレーションを止めたい場合は `.env` の `RUN_MIGRATIONS=false` を設定してください。
 
 ## 次PRで実装予定
 - CSV インポートAPI
@@ -89,6 +100,8 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend health: http://localhost:8001/health
 - API health: http://localhost:8001/api/health
+- Phase status: http://localhost:8001/api/phase/status
+- Compose状態: `docker compose ps` で db / redis / backend / frontend のhealthを確認
 
 ### 2. Search Keywordsで候補取得
 1. `Search Keywords` タブを開く。
@@ -143,6 +156,19 @@ https://www.ebay.com/sch/i.html?_ssn=example-seller
 ```
 
 > 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。eBayが自動取得を403 Forbiddenで拒否した場合は `fetch_status=blocked`、その他のページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。本格運用ではeBay公式API連携やレート制御を追加する予定です。
+
+
+## MVP Phase Status
+Phase単位でPRをまとめる運用に合わせ、現在のMVPが起動・DB接続・主要API観点でどこまで確認できているかを一覧する導線を追加しています。
+
+- `GET /api/phase/status`: DB接続確認、主要テーブル件数、Phase 1 ready check、eBay API / Marketplace Account Deletion設定状況を返す
+- Frontend `Phase Status` タブ: 上記APIを表示し、Docker起動後の最初の確認画面として利用できる
+
+```bash
+curl -s http://localhost:8001/api/phase/status | python -m json.tool
+```
+
+`status=ready_with_configuration_pending` の場合でも、未設定の外部連携（例: eBay compliance endpoint URL / verification token）が残っていることを示すだけで、ローカルMVP機能そのものは確認できます。
 
 ## eBay Marketplace Account Deletion endpoint
 Production keysetのcompliance対応用に、以下のendpointを用意しています。

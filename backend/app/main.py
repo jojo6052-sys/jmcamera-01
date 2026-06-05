@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine
 from app.models.base import Base
-from app.routers import analytics_router, candidates_router, competitors_router, ebay_compliance_router, feedbacks_router, imports_router, search_keywords_router, yahoo_router
+from app.routers import analytics_router, candidates_router, competitors_router, ebay_compliance_router, feedbacks_router, imports_router, phase_router, search_keywords_router, yahoo_router
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ def api_health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 app.include_router(imports_router)
+app.include_router(phase_router)
 app.include_router(analytics_router)
 app.include_router(search_keywords_router)
 app.include_router(yahoo_router)
