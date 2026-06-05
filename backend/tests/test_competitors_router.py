@@ -410,6 +410,33 @@ def test_create_keyword_from_competitor_term_is_idempotent() -> None:
         restore_db_override(previous_override)
 
 
+def test_bulk_create_keywords_from_competitor_suggestions_dedupes_keywords() -> None:
+    previous_override = with_test_db_override()
+    try:
+        with TestingSessionLocal() as db:
+            seller = CompetitorSeller(marketplace="ebay", seller_username="bulk-keyword-seller", seller_url="https://www.ebay.com/str/bulk-keyword-seller", fetch_status="ok")
+            db.add(seller)
+            db.commit()
+            seller_id = seller.id
+
+        response = client.post(
+            f"/api/competitors/{seller_id}/keywords/bulk",
+            json={"keywords": ["nikon f3", "nikon f3", "canon ae-1", ""], "category": "Competitor Research"},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert [item["keyword"] for item in payload] == ["nikon f3", "canon ae-1"]
+
+        repeat = client.post(f"/api/competitors/{seller_id}/keywords/bulk", json={"keywords": ["canon ae-1"]})
+        assert repeat.status_code == 200
+        assert repeat.json()[0]["id"] == payload[1]["id"]
+
+        with TestingSessionLocal() as db:
+            assert db.query(SearchKeyword).count() == 2
+    finally:
+        restore_db_override(previous_override)
+
+
 def test_export_competitor_items_csv_applies_status_and_keyword_filters() -> None:
     previous_override = with_test_db_override()
     try:

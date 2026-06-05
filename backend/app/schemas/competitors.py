@@ -27,6 +27,17 @@ class CompetitorKeywordCreate(BaseModel):
     active: bool = True
 
 
+class CompetitorKeywordBulkCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    keywords: list[str] | None = None
+    category: str | None = "Competitor Research"
+    brand: str | None = None
+    model_group: str | None = None
+    priority: int = Field(default=80, ge=1, le=999)
+    active: bool = True
+
+
 class CompetitorItemRead(BaseModel):
     id: int
     seller_id: int

@@ -130,6 +130,25 @@ export default function CompetitorResearchPage() {
   }
 
 
+  async function saveAllSuggestedKeywords() {
+    if (!selectedSellerId || !insights?.suggested_keywords.length) return
+    setError(null)
+    setMessage(null)
+    try {
+      const keywords = insights.suggested_keywords.map((item) => item.keyword)
+      await apiPost(`/api/competitors/${selectedSellerId}/keywords/bulk`, {
+        keywords,
+        category: 'Competitor Research',
+        priority: 80,
+        active: true,
+      })
+      setMessage(`推奨検索KW ${keywords.length}件を保存しました`)
+    } catch (e) {
+      setError(e instanceof Error ? `推奨検索KWの一括保存に失敗しました: ${e.message}` : '推奨検索KWの一括保存に失敗しました')
+    }
+  }
+
+
   const selectedSeller = useMemo(
     () => sellers.find((seller) => seller.id === selectedSellerId) ?? null,
     [selectedSellerId, sellers],
@@ -218,8 +237,11 @@ export default function CompetitorResearchPage() {
             <div className="text-xl font-semibold">{insights.sold_active_price_gap == null ? '-' : `$${insights.sold_active_price_gap}`}</div>
           </div>
           <div className="bg-white rounded shadow p-3 md:col-span-1">
-            <div className="text-xs text-slate-500">推奨検索KW</div>
-            <div className="flex flex-wrap gap-1 text-sm text-slate-700">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs text-slate-500">推奨検索KW</div>
+              <button className="rounded bg-emerald-700 px-2 py-1 text-xs text-white disabled:bg-slate-300" disabled={!insights.suggested_keywords.length} onClick={saveAllSuggestedKeywords}>一括+KW</button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1 text-sm text-slate-700">
               {insights.suggested_keywords.length ? insights.suggested_keywords.map((item) => (
                 <button key={item.keyword} className="rounded bg-emerald-100 px-2 py-1 text-emerald-800 hover:bg-emerald-200" onClick={() => saveInsightKeyword(item.keyword)} title="検索キーワードに保存">
                   {item.keyword}({item.count}) +KW

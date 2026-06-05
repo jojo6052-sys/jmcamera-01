@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.competitor import CompetitorItem, CompetitorSeller
 from app.models.search_keyword import SearchKeyword
-from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorKeywordCreate, CompetitorKeywordSuggestion, CompetitorSellerRead, CompetitorTopTerm
+from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorKeywordBulkCreate, CompetitorKeywordCreate, CompetitorKeywordSuggestion, CompetitorSellerRead, CompetitorTopTerm
 from app.schemas.keywords import SearchKeywordRead
 from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, build_ebay_seller_search_url, extract_ebay_seller_username, fetch_competitor_items, _parse_ebay_items
 
@@ -134,37 +134,42 @@ def create_keyword_from_competitor(
     payload: CompetitorKeywordCreate,
     db: Session = Depends(get_db),
 ) -> SearchKeyword:
-    seller = db.get(CompetitorSeller, seller_id)
-    if seller is None:
-        raise HTTPException(status_code=404, detail="competitor seller not found")
-
-    keyword = payload.keyword.strip()
-    if not keyword:
-        raise HTTPException(status_code=422, detail="keyword is required")
-
-    existing = db.query(SearchKeyword).filter(SearchKeyword.keyword == keyword).one_or_none()
-    if existing is not None:
-        return existing
-
-    entity = SearchKeyword(
-        keyword=keyword,
-        category=(payload.category or None),
-        brand=(payload.brand.strip() if payload.brand else None),
-        model_group=(payload.model_group.strip() if payload.model_group else None),
+    _get_competitor_seller_or_404(db, seller_id)
+    return _get_or_create_search_keyword(
+        db,
+        keyword=payload.keyword,
+        category=payload.category,
+        brand=payload.brand,
+        model_group=payload.model_group,
         priority=payload.priority,
         active=payload.active,
     )
-    db.add(entity)
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        existing = db.query(SearchKeyword).filter(SearchKeyword.keyword == keyword).one_or_none()
-        if existing is not None:
-            return existing
-        raise HTTPException(status_code=409, detail="search keyword already exists") from exc
-    db.refresh(entity)
-    return entity
+
+
+@router.post("/{seller_id}/keywords/bulk", response_model=list[SearchKeywordRead])
+def bulk_create_keywords_from_competitor(
+    seller_id: int,
+    payload: CompetitorKeywordBulkCreate,
+    db: Session = Depends(get_db),
+) -> list[SearchKeyword]:
+    _get_competitor_seller_or_404(db, seller_id)
+    keywords = payload.keywords or [item.keyword for item in _suggested_sold_keywords(db, seller_id)]
+    normalized_keywords = _dedupe_keywords(keywords)
+    if not normalized_keywords:
+        raise HTTPException(status_code=422, detail="at least one keyword is required")
+
+    return [
+        _get_or_create_search_keyword(
+            db,
+            keyword=keyword,
+            category=payload.category,
+            brand=payload.brand,
+            model_group=payload.model_group,
+            priority=payload.priority,
+            active=payload.active,
+        )
+        for keyword in normalized_keywords
+    ]
 
 
 @router.get("/{seller_id}/export.csv")
@@ -235,6 +240,64 @@ def _competitor_items_query(db: Session, *, seller_id: int, item_status: str | N
     if keyword:
         q = q.filter(CompetitorItem.title.ilike(f"%{keyword.strip()}%"))
     return q.order_by(CompetitorItem.last_seen_at.desc())
+
+
+def _get_competitor_seller_or_404(db: Session, seller_id: int) -> CompetitorSeller:
+    seller = db.get(CompetitorSeller, seller_id)
+    if seller is None:
+        raise HTTPException(status_code=404, detail="competitor seller not found")
+    return seller
+
+
+def _dedupe_keywords(keywords: list[str]) -> list[str]:
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for keyword in keywords:
+        value = keyword.strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        normalized.append(value)
+    return normalized
+
+
+def _get_or_create_search_keyword(
+    db: Session,
+    *,
+    keyword: str,
+    category: str | None,
+    brand: str | None,
+    model_group: str | None,
+    priority: int,
+    active: bool,
+) -> SearchKeyword:
+    normalized_keyword = keyword.strip()
+    if not normalized_keyword:
+        raise HTTPException(status_code=422, detail="keyword is required")
+
+    existing = db.query(SearchKeyword).filter(SearchKeyword.keyword == normalized_keyword).one_or_none()
+    if existing is not None:
+        return existing
+
+    entity = SearchKeyword(
+        keyword=normalized_keyword,
+        category=(category.strip() if category else None),
+        brand=(brand.strip() if brand else None),
+        model_group=(model_group.strip() if model_group else None),
+        priority=priority,
+        active=active,
+    )
+    db.add(entity)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        existing = db.query(SearchKeyword).filter(SearchKeyword.keyword == normalized_keyword).one_or_none()
+        if existing is not None:
+            return existing
+        raise HTTPException(status_code=409, detail="search keyword already exists") from exc
+    db.refresh(entity)
+    return entity
 
 
 def _sold_title_tokens(db: Session, seller_id: int) -> list[list[str]]:
