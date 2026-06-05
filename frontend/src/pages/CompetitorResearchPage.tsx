@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { apiGet, apiPost, apiPostForm } from '../api/client'
-import type { CompetitorAnalyzeResponse, CompetitorItem, CompetitorSeller } from '../types/competitors'
+import type { CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItem, CompetitorSeller } from '../types/competitors'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
@@ -14,6 +14,7 @@ export default function CompetitorResearchPage() {
   const [importingHtml, setImportingHtml] = useState(false)
   const [sellers, setSellers] = useState<CompetitorSeller[]>([])
   const [items, setItems] = useState<CompetitorItem[]>([])
+  const [insights, setInsights] = useState<CompetitorInsights | null>(null)
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'sold'>('all')
   const [keyword, setKeyword] = useState('')
@@ -26,7 +27,10 @@ export default function CompetitorResearchPage() {
   }, [])
 
   useEffect(() => {
-    if (selectedSellerId) loadItems(selectedSellerId)
+    if (selectedSellerId) {
+      loadItems(selectedSellerId)
+      loadInsights(selectedSellerId)
+    }
   }, [selectedSellerId, statusFilter])
 
   async function loadSellers() {
@@ -52,6 +56,15 @@ export default function CompetitorResearchPage() {
     }
   }
 
+  async function loadInsights(sellerId: number) {
+    try {
+      const payload = await apiGet<CompetitorInsights>(`/api/competitors/${sellerId}/insights`)
+      setInsights(payload)
+    } catch {
+      setError('ライバル分析サマリの取得に失敗しました')
+    }
+  }
+
   async function analyzeSeller() {
     setError(null)
     setMessage(null)
@@ -66,6 +79,7 @@ export default function CompetitorResearchPage() {
       setSelectedSellerId(payload.seller.id)
       setItems(payload.items)
       setMessage(`${payload.seller.seller_username} から ${payload.items.length}件を取り込みました`)
+      await loadInsights(payload.seller.id)
       await loadSellers()
     } catch (e) {
       setError(e instanceof Error ? `ライバルセラー分析に失敗しました: ${e.message}` : 'ライバルセラー分析に失敗しました')
@@ -88,6 +102,7 @@ export default function CompetitorResearchPage() {
       setSelectedSellerId(payload.seller.id)
       setItems(payload.items)
       setMessage(`${payload.seller.seller_username} の保存HTMLから ${payload.items.length}件を取り込みました`)
+      await loadInsights(payload.seller.id)
       await loadSellers()
     } catch (e) {
       setError(e instanceof Error ? `保存HTMLインポートに失敗しました: ${e.message}` : '保存HTMLインポートに失敗しました')
@@ -169,6 +184,27 @@ export default function CompetitorResearchPage() {
 
       {error && <div className="text-red-600 text-sm">{error}</div>}
       {message && <div className="text-green-700 text-sm">{message}</div>}
+
+      {insights && (
+        <div className="grid md:grid-cols-4 gap-3">
+          <div className="bg-white rounded shadow p-3">
+            <div className="text-xs text-slate-500">Sold比率</div>
+            <div className="text-xl font-semibold">{insights.sell_through_rate == null ? '-' : `${insights.sell_through_rate}%`}</div>
+          </div>
+          <div className="bg-white rounded shadow p-3">
+            <div className="text-xs text-slate-500">平均Sold価格</div>
+            <div className="text-xl font-semibold">{insights.avg_sold_price == null ? '-' : `$${insights.avg_sold_price}`}</div>
+          </div>
+          <div className="bg-white rounded shadow p-3">
+            <div className="text-xs text-slate-500">Sold - 出品中 価格差</div>
+            <div className="text-xl font-semibold">{insights.sold_active_price_gap == null ? '-' : `$${insights.sold_active_price_gap}`}</div>
+          </div>
+          <div className="bg-white rounded shadow p-3">
+            <div className="text-xs text-slate-500">Sold頻出語</div>
+            <div className="text-sm text-slate-700">{insights.top_sold_terms.length ? insights.top_sold_terms.map((term) => `${term.term}(${term.count})`).join(', ') : '-'}</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-[320px_1fr] gap-4">
         <div className="bg-white rounded shadow p-4 space-y-3">

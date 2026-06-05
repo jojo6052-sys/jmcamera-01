@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.competitor import CompetitorItem, CompetitorSeller
-from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorItemRead, CompetitorSellerRead
+from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorSellerRead, CompetitorTopTerm
 from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, build_ebay_seller_search_url, extract_ebay_seller_username, fetch_competitor_items, _parse_ebay_items
 
 router = APIRouter(prefix="/api/competitors", tags=["competitors"])
@@ -98,6 +98,32 @@ def list_competitor_sellers(db: Session = Depends(get_db)) -> list[CompetitorSel
     return db.query(CompetitorSeller).order_by(CompetitorSeller.updated_at.desc()).limit(100).all()
 
 
+@router.get("/{seller_id}/insights", response_model=CompetitorInsights)
+def get_competitor_insights(seller_id: int, db: Session = Depends(get_db)) -> CompetitorInsights:
+    seller = db.get(CompetitorSeller, seller_id)
+    if seller is None:
+        raise HTTPException(status_code=404, detail="competitor seller not found")
+
+    refresh_competitor_summary(db, seller)
+    total_count = seller.active_count + seller.sold_count
+    sell_through_rate = round((seller.sold_count / total_count) * 100, 1) if total_count else None
+    sold_active_price_gap = None
+    if seller.avg_sold_price is not None and seller.avg_active_price is not None:
+        sold_active_price_gap = float((seller.avg_sold_price - seller.avg_active_price).quantize(Decimal("0.01")))
+
+    return CompetitorInsights(
+        seller_id=seller.id,
+        seller_username=seller.seller_username,
+        active_count=seller.active_count,
+        sold_count=seller.sold_count,
+        sell_through_rate=sell_through_rate,
+        avg_active_price=float(seller.avg_active_price) if seller.avg_active_price is not None else None,
+        avg_sold_price=float(seller.avg_sold_price) if seller.avg_sold_price is not None else None,
+        sold_active_price_gap=sold_active_price_gap,
+        top_sold_terms=_top_sold_terms(db, seller.id),
+    )
+
+
 @router.get("/{seller_id}/export.csv")
 def export_competitor_items_csv(
     seller_id: int,
@@ -166,6 +192,41 @@ def _competitor_items_query(db: Session, *, seller_id: int, item_status: str | N
     if keyword:
         q = q.filter(CompetitorItem.title.ilike(f"%{keyword.strip()}%"))
     return q.order_by(CompetitorItem.last_seen_at.desc())
+
+
+def _top_sold_terms(db: Session, seller_id: int) -> list[CompetitorTopTerm]:
+    stopwords = {
+        "with",
+        "from",
+        "for",
+        "the",
+        "and",
+        "body",
+        "camera",
+        "lens",
+        "mint",
+        "near",
+        "excellent",
+        "working",
+        "tested",
+        "japan",
+    }
+    counts: dict[str, int] = {}
+    rows = (
+        db.query(CompetitorItem.normalized_title)
+        .filter(CompetitorItem.seller_id == seller_id, CompetitorItem.item_status == "sold")
+        .all()
+    )
+    for (title,) in rows:
+        for raw_term in (title or "").split():
+            term = raw_term.strip(".,:/()[]{}+_-'").lower()
+            if len(term) < 3 or term in stopwords or term.isdigit():
+                continue
+            counts[term] = counts.get(term, 0) + 1
+    return [
+        CompetitorTopTerm(term=term, count=count)
+        for term, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:10]
+    ]
 
 
 def upsert_competitor_seller(

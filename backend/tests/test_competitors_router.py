@@ -348,6 +348,36 @@ def test_competitor_items_can_be_filtered_by_status_and_keyword() -> None:
         restore_db_override(previous_override)
 
 
+def test_competitor_insights_returns_sell_through_price_gap_and_terms() -> None:
+    previous_override = with_test_db_override()
+    try:
+        with TestingSessionLocal() as db:
+            seller = CompetitorSeller(marketplace="ebay", seller_username="insight-seller", seller_url="https://www.ebay.com/str/insight-seller", fetch_status="ok")
+            db.add(seller)
+            db.flush()
+            db.add_all([
+                CompetitorItem(seller_id=seller.id, marketplace="ebay", external_item_id="active-1", title="Nikon F3 Active", normalized_title="nikon f3 active", item_url="https://example.com/active-1", item_status="active", price=Decimal("400.00"), currency="USD", source_url="https://example.com/active", raw={}),
+                CompetitorItem(seller_id=seller.id, marketplace="ebay", external_item_id="sold-1", title="Nikon F3 Body", normalized_title="nikon f3 body", item_url="https://example.com/sold-1", item_status="sold", price=Decimal("300.00"), currency="USD", source_url="https://example.com/sold", raw={}),
+                CompetitorItem(seller_id=seller.id, marketplace="ebay", external_item_id="sold-2", title="Nikon FM2 Body", normalized_title="nikon fm2 body", item_url="https://example.com/sold-2", item_status="sold", price=Decimal("200.00"), currency="USD", source_url="https://example.com/sold", raw={}),
+            ])
+            db.commit()
+            seller_id = seller.id
+
+        response = client.get(f"/api/competitors/{seller_id}/insights")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["seller_username"] == "insight-seller"
+        assert payload["active_count"] == 1
+        assert payload["sold_count"] == 2
+        assert payload["sell_through_rate"] == 66.7
+        assert payload["avg_active_price"] == 400.0
+        assert payload["avg_sold_price"] == 250.0
+        assert payload["sold_active_price_gap"] == -150.0
+        assert payload["top_sold_terms"][0] == {"term": "nikon", "count": 2}
+    finally:
+        restore_db_override(previous_override)
+
+
 def test_export_competitor_items_csv_applies_status_and_keyword_filters() -> None:
     previous_override = with_test_db_override()
     try:

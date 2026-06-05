@@ -56,3 +56,20 @@ class CompetitorSellerRead(BaseModel):
 class CompetitorAnalyzeResponse(BaseModel):
     seller: CompetitorSellerRead
     items: list[CompetitorItemRead]
+
+
+class CompetitorTopTerm(BaseModel):
+    term: str
+    count: int
+
+
+class CompetitorInsights(BaseModel):
+    seller_id: int
+    seller_username: str
+    active_count: int
+    sold_count: int
+    sell_through_rate: float | None = None
+    avg_active_price: float | None = None
+    avg_sold_price: float | None = None
+    sold_active_price_gap: float | None = None
+    top_sold_terms: list[CompetitorTopTerm]
