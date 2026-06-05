@@ -112,6 +112,24 @@ export default function CompetitorResearchPage() {
   }
 
 
+  async function saveInsightKeyword(keyword: string) {
+    if (!selectedSellerId) return
+    setError(null)
+    setMessage(null)
+    try {
+      await apiPost(`/api/competitors/${selectedSellerId}/keywords`, {
+        keyword,
+        category: 'Competitor Research',
+        priority: 80,
+        active: true,
+      })
+      setMessage(`検索キーワード「${keyword}」を保存しました`)
+    } catch (e) {
+      setError(e instanceof Error ? `検索キーワード保存に失敗しました: ${e.message}` : '検索キーワード保存に失敗しました')
+    }
+  }
+
+
   const selectedSeller = useMemo(
     () => sellers.find((seller) => seller.id === selectedSellerId) ?? null,
     [selectedSellerId, sellers],
@@ -201,7 +219,13 @@ export default function CompetitorResearchPage() {
           </div>
           <div className="bg-white rounded shadow p-3">
             <div className="text-xs text-slate-500">Sold頻出語</div>
-            <div className="text-sm text-slate-700">{insights.top_sold_terms.length ? insights.top_sold_terms.map((term) => `${term.term}(${term.count})`).join(', ') : '-'}</div>
+            <div className="flex flex-wrap gap-1 text-sm text-slate-700">
+              {insights.top_sold_terms.length ? insights.top_sold_terms.map((term) => (
+                <button key={term.term} className="rounded bg-slate-100 px-2 py-1 hover:bg-slate-200" onClick={() => saveInsightKeyword(term.term)} title="検索キーワードに保存">
+                  {term.term}({term.count}) +KW
+                </button>
+              )) : '-'}
+            </div>
           </div>
         </div>
       )}

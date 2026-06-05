@@ -6,11 +6,14 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.competitor import CompetitorItem, CompetitorSeller
-from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorSellerRead, CompetitorTopTerm
+from app.models.search_keyword import SearchKeyword
+from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorKeywordCreate, CompetitorSellerRead, CompetitorTopTerm
+from app.schemas.keywords import SearchKeywordRead
 from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, build_ebay_seller_search_url, extract_ebay_seller_username, fetch_competitor_items, _parse_ebay_items
 
 router = APIRouter(prefix="/api/competitors", tags=["competitors"])
@@ -122,6 +125,45 @@ def get_competitor_insights(seller_id: int, db: Session = Depends(get_db)) -> Co
         sold_active_price_gap=sold_active_price_gap,
         top_sold_terms=_top_sold_terms(db, seller.id),
     )
+
+
+@router.post("/{seller_id}/keywords", response_model=SearchKeywordRead)
+def create_keyword_from_competitor(
+    seller_id: int,
+    payload: CompetitorKeywordCreate,
+    db: Session = Depends(get_db),
+) -> SearchKeyword:
+    seller = db.get(CompetitorSeller, seller_id)
+    if seller is None:
+        raise HTTPException(status_code=404, detail="competitor seller not found")
+
+    keyword = payload.keyword.strip()
+    if not keyword:
+        raise HTTPException(status_code=422, detail="keyword is required")
+
+    existing = db.query(SearchKeyword).filter(SearchKeyword.keyword == keyword).one_or_none()
+    if existing is not None:
+        return existing
+
+    entity = SearchKeyword(
+        keyword=keyword,
+        category=(payload.category or None),
+        brand=(payload.brand.strip() if payload.brand else None),
+        model_group=(payload.model_group.strip() if payload.model_group else None),
+        priority=payload.priority,
+        active=payload.active,
+    )
+    db.add(entity)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        existing = db.query(SearchKeyword).filter(SearchKeyword.keyword == keyword).one_or_none()
+        if existing is not None:
+            return existing
+        raise HTTPException(status_code=409, detail="search keyword already exists") from exc
+    db.refresh(entity)
+    return entity
 
 
 @router.get("/{seller_id}/export.csv")

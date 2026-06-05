@@ -11,6 +11,7 @@ from app.config import settings
 from app.database import Base, get_db
 from app.main import app
 from app.models.competitor import CompetitorItem, CompetitorSeller
+from app.models.search_keyword import SearchKeyword
 from app.services.ebay_research import (
     CompetitorItemPayload,
     EbayFetchBlockedError,
@@ -374,6 +375,35 @@ def test_competitor_insights_returns_sell_through_price_gap_and_terms() -> None:
         assert payload["avg_sold_price"] == 250.0
         assert payload["sold_active_price_gap"] == -150.0
         assert payload["top_sold_terms"][0] == {"term": "nikon", "count": 2}
+    finally:
+        restore_db_override(previous_override)
+
+
+def test_create_keyword_from_competitor_term_is_idempotent() -> None:
+    previous_override = with_test_db_override()
+    try:
+        with TestingSessionLocal() as db:
+            seller = CompetitorSeller(marketplace="ebay", seller_username="keyword-seller", seller_url="https://www.ebay.com/str/keyword-seller", fetch_status="ok")
+            db.add(seller)
+            db.commit()
+            seller_id = seller.id
+
+        response = client.post(
+            f"/api/competitors/{seller_id}/keywords",
+            json={"keyword": "nikon f3", "category": "Competitor Research", "priority": 80},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["keyword"] == "nikon f3"
+        assert payload["category"] == "Competitor Research"
+        assert payload["priority"] == 80
+
+        duplicate = client.post(f"/api/competitors/{seller_id}/keywords", json={"keyword": "nikon f3"})
+        assert duplicate.status_code == 200
+        assert duplicate.json()["id"] == payload["id"]
+
+        with TestingSessionLocal() as db:
+            assert db.query(SearchKeyword).filter(SearchKeyword.keyword == "nikon f3").count() == 1
     finally:
         restore_db_override(previous_override)
 

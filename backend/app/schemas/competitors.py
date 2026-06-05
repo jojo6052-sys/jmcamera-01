@@ -16,6 +16,17 @@ class CompetitorAnalyzeRequest(BaseModel):
         return self
 
 
+class CompetitorKeywordCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    keyword: str
+    category: str | None = "Competitor Research"
+    brand: str | None = None
+    model_group: str | None = None
+    priority: int = Field(default=80, ge=1, le=999)
+    active: bool = True
+
+
 class CompetitorItemRead(BaseModel):
     id: int
     seller_id: int
