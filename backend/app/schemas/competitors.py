@@ -69,6 +69,11 @@ class CompetitorAnalyzeResponse(BaseModel):
     items: list[CompetitorItemRead]
 
 
+class CompetitorKeywordSuggestion(BaseModel):
+    keyword: str
+    count: int
+
+
 class CompetitorTopTerm(BaseModel):
     term: str
     count: int
@@ -84,3 +89,4 @@ class CompetitorInsights(BaseModel):
     avg_sold_price: float | None = None
     sold_active_price_gap: float | None = None
     top_sold_terms: list[CompetitorTopTerm]
+    suggested_keywords: list[CompetitorKeywordSuggestion]

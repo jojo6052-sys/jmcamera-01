@@ -42,6 +42,11 @@ export type CompetitorTopTerm = {
   count: number
 }
 
+export type CompetitorKeywordSuggestion = {
+  keyword: string
+  count: number
+}
+
 export type CompetitorInsights = {
   seller_id: number
   seller_username: string
@@ -52,4 +57,5 @@ export type CompetitorInsights = {
   avg_sold_price: number | null
   sold_active_price_gap: number | null
   top_sold_terms: CompetitorTopTerm[]
+  suggested_keywords: CompetitorKeywordSuggestion[]
 }

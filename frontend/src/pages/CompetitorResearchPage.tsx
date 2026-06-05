@@ -217,15 +217,16 @@ export default function CompetitorResearchPage() {
             <div className="text-xs text-slate-500">Sold - 出品中 価格差</div>
             <div className="text-xl font-semibold">{insights.sold_active_price_gap == null ? '-' : `$${insights.sold_active_price_gap}`}</div>
           </div>
-          <div className="bg-white rounded shadow p-3">
-            <div className="text-xs text-slate-500">Sold頻出語</div>
+          <div className="bg-white rounded shadow p-3 md:col-span-1">
+            <div className="text-xs text-slate-500">推奨検索KW</div>
             <div className="flex flex-wrap gap-1 text-sm text-slate-700">
-              {insights.top_sold_terms.length ? insights.top_sold_terms.map((term) => (
-                <button key={term.term} className="rounded bg-slate-100 px-2 py-1 hover:bg-slate-200" onClick={() => saveInsightKeyword(term.term)} title="検索キーワードに保存">
-                  {term.term}({term.count}) +KW
+              {insights.suggested_keywords.length ? insights.suggested_keywords.map((item) => (
+                <button key={item.keyword} className="rounded bg-emerald-100 px-2 py-1 text-emerald-800 hover:bg-emerald-200" onClick={() => saveInsightKeyword(item.keyword)} title="検索キーワードに保存">
+                  {item.keyword}({item.count}) +KW
                 </button>
               )) : '-'}
             </div>
+            <div className="mt-2 text-xs text-slate-500">単語候補: {insights.top_sold_terms.length ? insights.top_sold_terms.map((term) => `${term.term}(${term.count})`).join(', ') : '-'}</div>
           </div>
         </div>
       )}

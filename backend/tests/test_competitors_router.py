@@ -375,6 +375,8 @@ def test_competitor_insights_returns_sell_through_price_gap_and_terms() -> None:
         assert payload["avg_sold_price"] == 250.0
         assert payload["sold_active_price_gap"] == -150.0
         assert payload["top_sold_terms"][0] == {"term": "nikon", "count": 2}
+        assert {"keyword": "nikon f3", "count": 1} in payload["suggested_keywords"]
+        assert {"keyword": "nikon fm2", "count": 1} in payload["suggested_keywords"]
     finally:
         restore_db_override(previous_override)
 

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.competitor import CompetitorItem, CompetitorSeller
 from app.models.search_keyword import SearchKeyword
-from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorKeywordCreate, CompetitorSellerRead, CompetitorTopTerm
+from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorKeywordCreate, CompetitorKeywordSuggestion, CompetitorSellerRead, CompetitorTopTerm
 from app.schemas.keywords import SearchKeywordRead
 from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, build_ebay_seller_search_url, extract_ebay_seller_username, fetch_competitor_items, _parse_ebay_items
 
@@ -124,6 +124,7 @@ def get_competitor_insights(seller_id: int, db: Session = Depends(get_db)) -> Co
         avg_sold_price=float(seller.avg_sold_price) if seller.avg_sold_price is not None else None,
         sold_active_price_gap=sold_active_price_gap,
         top_sold_terms=_top_sold_terms(db, seller.id),
+        suggested_keywords=_suggested_sold_keywords(db, seller.id),
     )
 
 
@@ -236,7 +237,7 @@ def _competitor_items_query(db: Session, *, seller_id: int, item_status: str | N
     return q.order_by(CompetitorItem.last_seen_at.desc())
 
 
-def _top_sold_terms(db: Session, seller_id: int) -> list[CompetitorTopTerm]:
+def _sold_title_tokens(db: Session, seller_id: int) -> list[list[str]]:
     stopwords = {
         "with",
         "from",
@@ -253,17 +254,47 @@ def _top_sold_terms(db: Session, seller_id: int) -> list[CompetitorTopTerm]:
         "tested",
         "japan",
     }
-    counts: dict[str, int] = {}
     rows = (
         db.query(CompetitorItem.normalized_title)
         .filter(CompetitorItem.seller_id == seller_id, CompetitorItem.item_status == "sold")
         .all()
     )
+    tokenized: list[list[str]] = []
     for (title,) in rows:
+        tokens: list[str] = []
         for raw_term in (title or "").split():
-            term = raw_term.strip(".,:/()[]{}+_-'").lower()
-            if len(term) < 3 or term in stopwords or term.isdigit():
+            term = raw_term.strip(".,:/()[]{}+_-'\"").lower()
+            has_letter = any(char.isalpha() for char in term)
+            has_digit = any(char.isdigit() for char in term)
+            if term in stopwords or term.isdigit() or (len(term) < 3 and not (has_letter and has_digit)):
                 continue
+            tokens.append(term)
+        if tokens:
+            tokenized.append(tokens)
+    return tokenized
+
+
+def _suggested_sold_keywords(db: Session, seller_id: int) -> list[CompetitorKeywordSuggestion]:
+    counts: dict[str, int] = {}
+    for tokens in _sold_title_tokens(db, seller_id):
+        seen: set[str] = set()
+        for index in range(len(tokens) - 1):
+            keyword = f"{tokens[index]} {tokens[index + 1]}"
+            seen.add(keyword)
+        if len(tokens) >= 2:
+            seen.add(" ".join(tokens[:3] if len(tokens) >= 3 else tokens))
+        for keyword in seen:
+            counts[keyword] = counts.get(keyword, 0) + 1
+    return [
+        CompetitorKeywordSuggestion(keyword=keyword, count=count)
+        for keyword, count in sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:10]
+    ]
+
+
+def _top_sold_terms(db: Session, seller_id: int) -> list[CompetitorTopTerm]:
+    counts: dict[str, int] = {}
+    for tokens in _sold_title_tokens(db, seller_id):
+        for term in tokens:
             counts[term] = counts.get(term, 0) + 1
     return [
         CompetitorTopTerm(term=term, count=count)
