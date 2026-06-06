@@ -43,12 +43,22 @@ docker compose exec backend alembic upgrade head
 
 自動マイグレーションを止めたい場合は `.env` の `RUN_MIGRATIONS=false` を設定してください。
 
-## 次PRで実装予定
-- CSV インポートAPI
-- 分析API
-- 分析画面
-- ヤフオク検索サービス / 候補保存 / 推薦スコア / フィードバック
+## Phase 1 MVPに含まれる主要機能
+- CSVインポートとProduct Analytics
+- Search Keywords管理とYahoo候補取得
+- Recommendationsでの候補確認、推薦スコア再計算、フィードバック保存、CSV出力
+- Competitor ResearchでのeBayセラー分析、Sold HTML代替インポート、推奨検索KW保存
+- eBay Marketplace Account Deletion endpoint
+- Phase Status API / 画面によるDB接続・主要データ件数・設定状態確認
 
+## Smoke Check（起動後の主要API確認）
+`docker compose up --build` 後、別ターミナルで主要な読み取りAPIをまとめて確認できます。
+
+```bash
+python scripts/smoke_check.py --base-url http://localhost:8001
+```
+
+このスクリプトは `/health`、`/api/health`、`/api/phase/status`、検索KW、候補、ライバルセラー、分析APIをread-onlyで確認します。
 
 ## Dockerが無い環境でのローカル検証
 ```bash
