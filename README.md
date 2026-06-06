@@ -60,6 +60,13 @@ python scripts/smoke_check.py --base-url http://localhost:8001
 
 このスクリプトは `/health`、`/api/health`、`/api/phase/status`、検索KW、候補、ライバルセラー、分析APIをread-onlyで確認します。
 
+検索KW作成 → Yahoo候補取得 → 候補スコアリングまで確認したい場合は、ローカル検証DBにデータを作成するwrite smoke checkも実行できます。
+
+```bash
+python scripts/smoke_check.py --base-url http://localhost:8001 --include-write-checks
+```
+
+
 ## Dockerが無い環境でのローカル検証
 ```bash
 cd backend
