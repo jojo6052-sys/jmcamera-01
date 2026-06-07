@@ -15,6 +15,33 @@
 - `backend/` FastAPI + SQLAlchemy + Alembic
 - `frontend/` React + Vite + Tailwind
 
+
+## GitHub remote / Phaseブランチ運用
+このリポジトリのGitHub remoteは以下です。
+
+```bash
+git remote add origin https://github.com/jojo6052-sys/jmcamera-01.git
+git fetch origin --prune
+```
+
+Phase単位で作業する場合は、mainを最新化してからfeatureブランチを作成・更新します。
+
+```bash
+git checkout -b feature/mvp-phase-1 origin/main
+# 既にwork等で作業している場合は、必要に応じてブランチ名を変更してmainを取り込みます
+git branch -m feature/mvp-phase-1
+git fetch origin --prune
+git rebase origin/main
+```
+
+同じPhaseの作業中は新しいPRを作らず、同じ `feature/mvp-phase-1` ブランチへ追加コミットします。pushにはGitHub認証が必要です。
+
+```bash
+git push -u origin feature/mvp-phase-1
+```
+
+> PATやAPIキーはチャット・コード・ログに貼らず、GitHub CLI/credential helper/SSH keyなど安全な認証手段を使ってください。
+
 ## セットアップ
 ```bash
 cp .env.example .env
