@@ -37,7 +37,13 @@ else
   exit 1
 fi
 
-"$PYTHON_BIN" -m py_compile scripts/smoke_check.py
+"$PYTHON_BIN" - <<'PY'
+import ast
+from pathlib import Path
+
+source_path = Path("scripts/smoke_check.py")
+ast.parse(source_path.read_text(), filename=str(source_path))
+PY
 
 cd "$ROOT_DIR/backend"
 venv_needs_rebuild=true
