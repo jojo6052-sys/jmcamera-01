@@ -78,6 +78,22 @@ docker compose exec backend alembic upgrade head
 - eBay Marketplace Account Deletion endpoint
 - Phase Status API / 画面によるDB接続・主要データ件数・設定状態確認
 
+
+## Dev Check（Phase PR前の一括確認）
+Phase単位PRを作成する前に、backendテスト・Alembic適用確認・frontend build・差分チェックをまとめて実行できます。Python依存関係は 3.11〜3.13 を優先して仮想環境にインストールします。
+
+```bash
+scripts/dev_check.sh
+```
+
+Docker Compose設定も含めて確認したい場合は、Docker CLIが使える環境で以下を実行してください。
+
+```bash
+RUN_DOCKER_CHECKS=true scripts/dev_check.sh
+```
+
+`RUN_DOCKER_CHECKS=true` は `docker compose config` まで確認します。実際の起動確認は `docker compose up --build` と `python scripts/smoke_check.py --base-url http://localhost:8001 --include-write-checks` を併用してください。
+
 ## Smoke Check（起動後の主要API確認）
 `docker compose up --build` 後、別ターミナルで主要な読み取りAPIをまとめて確認できます。
 
