@@ -48,6 +48,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
+FrontendはVite 8系のため Node.js 20.19以上（または22.12以上）が必要です。Docker環境では `frontend/Dockerfile` の `node:20.19-alpine` を使います。
+
 `docker-compose.yml` には db / redis / backend / frontend の healthcheck を設定しているため、起動後は以下で状態を確認できます。
 
 ```bash
