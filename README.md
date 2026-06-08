@@ -48,6 +48,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
+FrontendはVite 8系のため Node.js 20.19以上（または22.12以上）が必要です。Docker環境では `frontend/Dockerfile` の `node:20.19-alpine` を使います。
+
 `docker-compose.yml` には db / redis / backend / frontend の healthcheck を設定しているため、起動後は以下で状態を確認できます。
 
 ```bash
@@ -229,6 +231,13 @@ curl -s http://localhost:8001/api/phase/status | python -m json.tool
 ```
 
 `status=ready_with_configuration_pending` の場合でも、未設定の外部連携（例: eBay compliance endpoint URL / verification token）が残っていることを示すだけで、ローカルMVP機能そのものは確認できます。
+
+### Phase 1 MVP 検証済み項目と次PR候補
+- 検証済み: Docker Compose起動、`/health`、`/api/health`、`/api/phase/status`、read/write smoke check、backend pytest、frontend build。
+- `core_ready=true`: CSVインポート、分析API/画面、検索KW、Yahoo候補、推薦スコア、フィードバック、ライバル分析のローカルMVP導線は確認済みとして扱う。
+- `status=ready_with_configuration_pending`: ローカルMVPはreadyだが、Production向けの eBay API credentials / Marketplace Account Deletion endpoint 設定が未完了であることを示す。
+- 外部設定: eBay Production keyset取得後に `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` を設定し、外部公開HTTPS URL確定後にMarketplace Account Deletion endpoint URL / verification tokenを設定する。
+- Follow-up候補: Yahoo取得の本番差し替え・レート制御強化、eBay Sold履歴の公式API/許可済み導線、npm auditで検出されるfrontend依存脆弱性の精査を次PR候補にする。
 
 ## eBay Marketplace Account Deletion endpoint
 Production keysetのcompliance対応用に、以下のendpointを用意しています。

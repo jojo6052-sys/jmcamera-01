@@ -11,8 +11,10 @@ export interface PhaseConfiguration {
 export interface PhaseStatus {
   phase: string
   status: string
+  core_ready: boolean
   database: string
   metrics: PhaseMetric[]
   ready_checks: Record<string, boolean>
   configuration: PhaseConfiguration
+  pending_configuration: string[]
 }
