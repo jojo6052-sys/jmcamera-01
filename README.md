@@ -230,6 +230,13 @@ curl -s http://localhost:8001/api/phase/status | python -m json.tool
 
 `status=ready_with_configuration_pending` の場合でも、未設定の外部連携（例: eBay compliance endpoint URL / verification token）が残っていることを示すだけで、ローカルMVP機能そのものは確認できます。
 
+### Phase 1 MVP 残タスク整理
+- Frontend確認: `Phase Status`、`Product Analytics`、`Recommendations`、`Search Keywords`、`Competitor Research` の各タブで初期表示・再読み込み・エラー表示を確認する。
+- 必須検証: `docker compose exec backend pytest -q`、`docker compose exec frontend npm run build`、`curl -i http://localhost:8001/health`、`curl -i http://localhost:8001/api/health` をPR前に再実行する。
+- Smoke確認: 起動済み環境で `python scripts/smoke_check.py --base-url http://localhost:8001 --include-write-checks` を実行し、キーワード作成・Yahoo候補取得・スコアリングのwrite pathを確認する。
+- 外部設定: eBay Production keyset取得後に `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` を設定し、外部公開HTTPS URL確定後にMarketplace Account Deletion endpoint URL / verification tokenを設定する。
+- Follow-up候補: Yahoo取得の本番差し替え・レート制御強化、eBay Sold履歴の公式API/許可済み導線、npm auditで検出されるfrontend依存脆弱性の精査を次PR候補にする。
+
 ## eBay Marketplace Account Deletion endpoint
 Production keysetのcompliance対応用に、以下のendpointを用意しています。
 
