@@ -13,6 +13,11 @@ const CHECK_LABELS: Record<string, string> = {
   ebay_compliance_endpoint_ready: 'eBay削除通知設定',
 }
 
+const CONFIG_LABELS: Record<string, string> = {
+  ebay_api_credentials_configured: 'eBay API credentials',
+  ebay_compliance_configured: 'eBay削除通知endpoint',
+}
+
 const METRIC_LABELS: Record<string, string> = {
   products: '商品',
   search_keywords: '検索KW',
@@ -89,8 +94,21 @@ export default function PhaseStatusPage() {
             </div>
 
             <div className="bg-white rounded shadow p-4">
+              <h3 className="font-semibold mb-3">External Configuration</h3>
+              <div className="space-y-2 text-sm">
+                {Object.entries(status.configuration).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between rounded border border-slate-200 px-3 py-2">
+                    <span>{CONFIG_LABELS[key] ?? key}</span>
+                    <span className={value ? 'text-emerald-700 font-semibold' : 'text-amber-700 font-semibold'}>{value ? '設定済み' : '未設定'}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-slate-500">未設定でもローカルMVPの確認は可能です。Production連携前に.envへ設定してください。</p>
+            </div>
+
+            <div className="bg-white rounded shadow p-4 lg:col-span-2">
               <h3 className="font-semibold mb-3">Data Counts</h3>
-              <div className="grid sm:grid-cols-2 gap-2 text-sm">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
                 {status.metrics.map((metric) => (
                   <div key={metric.label} className="flex items-center justify-between rounded border border-slate-200 px-3 py-2">
                     <span>{METRIC_LABELS[metric.label] ?? metric.label}</span>
