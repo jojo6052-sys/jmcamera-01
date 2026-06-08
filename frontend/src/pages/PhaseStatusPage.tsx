@@ -18,6 +18,11 @@ const CONFIG_LABELS: Record<string, string> = {
   ebay_compliance_configured: 'eBay削除通知endpoint',
 }
 
+const PENDING_CONFIG_LABELS: Record<string, string> = {
+  ebay_api_credentials: 'eBay API credentials',
+  ebay_compliance_endpoint: 'eBay削除通知endpoint',
+}
+
 const METRIC_LABELS: Record<string, string> = {
   products: '商品',
   search_keywords: '検索KW',
@@ -73,6 +78,9 @@ export default function PhaseStatusPage() {
             <div className="bg-white rounded shadow p-4">
               <div className="text-xs text-slate-500">Status</div>
               <div className={status.status === 'ready' ? 'text-2xl font-semibold text-emerald-700' : 'text-2xl font-semibold text-amber-700'}>{status.status}</div>
+              <div className={status.core_ready ? 'mt-1 text-xs font-medium text-emerald-700' : 'mt-1 text-xs font-medium text-red-700'}>
+                {status.core_ready ? 'Local MVP ready' : 'Core checks need attention'}
+              </div>
             </div>
             <div className="bg-white rounded shadow p-4">
               <div className="text-xs text-slate-500">Database</div>
@@ -94,7 +102,7 @@ export default function PhaseStatusPage() {
             </div>
 
             <div className="bg-white rounded shadow p-4">
-              <h3 className="font-semibold mb-3">External Configuration</h3>
+              <h3 className="font-semibold mb-3">Production Configuration</h3>
               <div className="space-y-2 text-sm">
                 {Object.entries(status.configuration).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between rounded border border-slate-200 px-3 py-2">
@@ -103,7 +111,13 @@ export default function PhaseStatusPage() {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-xs text-slate-500">未設定でもローカルMVPの確認は可能です。Production連携前に.envへ設定してください。</p>
+              {status.pending_configuration.length > 0 ? (
+                <p className="mt-3 text-xs text-slate-500">
+                  未設定: {status.pending_configuration.map((key) => PENDING_CONFIG_LABELS[key] ?? key).join('、')}。ローカルMVP確認は完了扱いにできます。
+                </p>
+              ) : (
+                <p className="mt-3 text-xs text-emerald-700">Production連携設定も完了しています。</p>
+              )}
             </div>
 
             <div className="bg-white rounded shadow p-4 lg:col-span-2">
