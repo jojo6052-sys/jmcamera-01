@@ -48,6 +48,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
+FrontendはVite 8系のため Node.js 20.19以上（または22.12以上）が必要です。Docker環境では `frontend/Dockerfile` の `node:20.19-alpine` を使います。
+
 `docker-compose.yml` には db / redis / backend / frontend の healthcheck を設定しているため、起動後は以下で状態を確認できます。
 
 ```bash
@@ -134,10 +136,21 @@ es_number,title,normalized_title,brand,model,category,mount,condition_rank,purch
 
 ## Phase 1 - PR3 追加機能（MVP版）
 - `GET/POST/PUT/DELETE /api/search-keywords`
-- `POST /api/yahoo/search`（MVPでは安全なダミー候補生成で保存、後続PRでスクレイパ差し替え）
+- `POST /api/yahoo/search`（デフォルトは安全なfallback候補生成で保存。`.env` の `YAHOO_FETCH_MODE=live` でYahoo検索ページ取得を明示的に有効化）
 - `GET /api/candidates`
 - `GET /api/candidates/{id}`
 
+### Yahoo候補取得モード
+MVPの安定検証では、外部サイトへアクセスしない `YAHOO_FETCH_MODE=fallback` をデフォルトにしています。実Yahoo検索ページ取得を検証する場合のみ以下を `.env` に設定してください。
+
+```env
+YAHOO_FETCH_MODE=live
+YAHOO_REQUEST_MIN_DELAY_SECONDS=0.2
+YAHOO_REQUEST_MAX_DELAY_SECONDS=0.8
+YAHOO_REQUEST_TIMEOUT_SECONDS=10
+```
+
+`live` モードでも取得失敗・ページ構造変更・アクセス制限時はfallback候補を返し、API全体を落とさない設計です。過剰アクセスを避けるため、ランダム待機とtimeoutを設定値で制御します。
 
 ## Phase 1 - PR4 追加機能
 - `POST /api/candidates/{id}/feedback`: 仕入れ判断フィードバック保存
@@ -229,6 +242,13 @@ curl -s http://localhost:8001/api/phase/status | python -m json.tool
 ```
 
 `status=ready_with_configuration_pending` の場合でも、未設定の外部連携（例: eBay compliance endpoint URL / verification token）が残っていることを示すだけで、ローカルMVP機能そのものは確認できます。
+
+### Phase 1 MVP 検証済み項目と次PR候補
+- 検証済み: Docker Compose起動、`/health`、`/api/health`、`/api/phase/status`、read/write smoke check、backend pytest、frontend build。
+- `core_ready=true`: CSVインポート、分析API/画面、検索KW、Yahoo候補、推薦スコア、フィードバック、ライバル分析のローカルMVP導線は確認済みとして扱う。
+- `status=ready_with_configuration_pending`: ローカルMVPはreadyだが、Production向けの eBay API credentials / Marketplace Account Deletion endpoint 設定が未完了であることを示す。
+- 外部設定: eBay Production keyset取得後に `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` を設定し、外部公開HTTPS URL確定後にMarketplace Account Deletion endpoint URL / verification tokenを設定する。
+- Follow-up候補: Yahoo取得の本番差し替え・レート制御強化、eBay Sold履歴の公式API/許可済み導線、npm auditで検出されるfrontend依存脆弱性の精査を次PR候補にする。
 
 ## eBay Marketplace Account Deletion endpoint
 Production keysetのcompliance対応用に、以下のendpointを用意しています。
