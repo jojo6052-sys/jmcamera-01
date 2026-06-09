@@ -228,7 +228,7 @@ https://www.ebay.com/usr/example-seller
 https://www.ebay.com/sch/i.html?_ssn=example-seller
 ```
 
-> 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。eBayが自動取得を403 Forbiddenで拒否した場合は `fetch_status=blocked`、その他のページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。本格運用ではeBay公式API連携やレート制御を追加する予定です。
+> 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。eBayが自動取得を403 Forbiddenで拒否した場合は `fetch_status=blocked`、その他のページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。公開ページ取得を止めたい場合は `.env` の `EBAY_PUBLIC_FETCH_MODE=disabled` を設定し、Browse APIまたは保存HTMLインポートを使ってください。
 
 
 ## MVP Phase Status
@@ -264,6 +264,18 @@ EBAY_MARKETPLACE_DELETION_ENDPOINT_URL=https://your-domain.example/api/ebay/mark
 ```
 
 > eBay Developer Portalに登録するendpointは外部から到達可能なHTTPS URLである必要があります。`localhost`やDocker内部URLは登録できません。
+
+## eBay公開ページ取得モード（MVP fallback）
+Competitor Researchの公開検索ページ取得は、過剰アクセス防止のためdelay/timeoutを `.env` で制御できます。デフォルトは現状互換の `live` です。
+
+```env
+EBAY_PUBLIC_FETCH_MODE=live
+EBAY_PUBLIC_REQUEST_MIN_DELAY_SECONDS=0.2
+EBAY_PUBLIC_REQUEST_MAX_DELAY_SECONDS=0.8
+EBAY_PUBLIC_REQUEST_TIMEOUT_SECONDS=12
+```
+
+公開ページ取得を行わず、eBay Browse API（出品中）や保存HTMLインポート（Sold Items）だけで検証する場合は `EBAY_PUBLIC_FETCH_MODE=disabled` を設定してください。
 
 ## eBay Browse API連携（出品中商品の安定取得）
 Production keyset取得後は、以下を `.env` に設定するとCompetitor Researchの「出品中」取得でeBay Browse APIを優先します。

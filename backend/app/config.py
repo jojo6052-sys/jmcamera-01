@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     yahoo_request_min_delay_seconds: float = 0.2
     yahoo_request_max_delay_seconds: float = 0.8
     yahoo_request_timeout_seconds: float = 10.0
+    ebay_public_fetch_mode: str = "live"
+    ebay_public_request_min_delay_seconds: float = 0.2
+    ebay_public_request_max_delay_seconds: float = 0.8
+    ebay_public_request_timeout_seconds: float = 12.0
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

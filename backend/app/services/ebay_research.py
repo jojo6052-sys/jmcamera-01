@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import random
 import re
 import time
 from dataclasses import dataclass
@@ -91,10 +92,10 @@ def fetch_competitor_items(seller_url: str, *, include_active: bool = True, incl
         rows.extend(fetch_active_items_with_browse_api(seller_username, limit=capped_limit))
         include_active = False
 
-    if include_active or include_sold:
+    if (include_active or include_sold) and _public_fetch_enabled():
         for item_status in _requested_statuses(include_active=include_active, include_sold=include_sold):
             source_url = build_ebay_seller_search_url(seller_username, item_status)
-            time.sleep(0.2)
+            _polite_public_wait()
             html = _fetch_html(source_url)
             rows.extend(_parse_ebay_items(html, source_url=source_url, item_status=item_status, limit=capped_limit))
 
@@ -103,6 +104,16 @@ def fetch_competitor_items(seller_url: str, *, include_active: bool = True, incl
 
 def has_ebay_api_credentials() -> bool:
     return bool(settings.ebay_client_id.strip() and settings.ebay_client_secret.strip())
+
+
+def _public_fetch_enabled() -> bool:
+    return settings.ebay_public_fetch_mode.strip().lower() == "live"
+
+
+def _polite_public_wait() -> None:
+    min_delay = max(0.0, settings.ebay_public_request_min_delay_seconds)
+    max_delay = max(min_delay, settings.ebay_public_request_max_delay_seconds)
+    time.sleep(random.uniform(min_delay, max_delay))
 
 
 def fetch_active_items_with_browse_api(seller_username: str, *, limit: int) -> list[CompetitorItemPayload]:
@@ -186,7 +197,7 @@ def _requested_statuses(*, include_active: bool, include_sold: bool) -> list[str
 
 
 def _fetch_html(url: str) -> str:
-    response = requests.get(url, headers=REQUEST_HEADERS, timeout=12)
+    response = requests.get(url, headers=REQUEST_HEADERS, timeout=settings.ebay_public_request_timeout_seconds)
     if response.status_code == 403:
         raise EbayFetchBlockedError(EBAY_BLOCKED_MESSAGE)
     response.raise_for_status()
