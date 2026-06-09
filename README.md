@@ -136,10 +136,21 @@ es_number,title,normalized_title,brand,model,category,mount,condition_rank,purch
 
 ## Phase 1 - PR3 追加機能（MVP版）
 - `GET/POST/PUT/DELETE /api/search-keywords`
-- `POST /api/yahoo/search`（MVPでは安全なダミー候補生成で保存、後続PRでスクレイパ差し替え）
+- `POST /api/yahoo/search`（デフォルトは安全なfallback候補生成で保存。`.env` の `YAHOO_FETCH_MODE=live` でYahoo検索ページ取得を明示的に有効化）
 - `GET /api/candidates`
 - `GET /api/candidates/{id}`
 
+### Yahoo候補取得モード
+MVPの安定検証では、外部サイトへアクセスしない `YAHOO_FETCH_MODE=fallback` をデフォルトにしています。実Yahoo検索ページ取得を検証する場合のみ以下を `.env` に設定してください。
+
+```env
+YAHOO_FETCH_MODE=live
+YAHOO_REQUEST_MIN_DELAY_SECONDS=0.2
+YAHOO_REQUEST_MAX_DELAY_SECONDS=0.8
+YAHOO_REQUEST_TIMEOUT_SECONDS=10
+```
+
+`live` モードでも取得失敗・ページ構造変更・アクセス制限時はfallback候補を返し、API全体を落とさない設計です。過剰アクセスを避けるため、ランダム待機とtimeoutを設定値で制御します。
 
 ## Phase 1 - PR4 追加機能
 - `POST /api/candidates/{id}/feedback`: 仕入れ判断フィードバック保存
