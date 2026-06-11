@@ -89,7 +89,30 @@ DATABASE_URL=sqlite:///./migration_check.db .venv/bin/alembic upgrade head
 PYTHONPATH=. .venv/bin/pytest -q
 
 cd "$ROOT_DIR/frontend"
-npm install
+frontend_deps_hash="$($PYTHON_BIN - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+
+digest = sha256()
+for name in ("package.json", "package-lock.json"):
+    path = Path(name)
+    digest.update(name.encode())
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+)"
+frontend_deps_stamp="node_modules/.package-lock.sha256"
+frontend_deps_need_install=true
+if [ -d node_modules ] && [ -f "$frontend_deps_stamp" ] && [ "$(cat "$frontend_deps_stamp")" = "$frontend_deps_hash" ]; then
+  frontend_deps_need_install=false
+fi
+
+if [ "$frontend_deps_need_install" = true ]; then
+  npm install
+  printf '%s\n' "$frontend_deps_hash" > "$frontend_deps_stamp"
+fi
 npm run build
 
 cd "$ROOT_DIR"
