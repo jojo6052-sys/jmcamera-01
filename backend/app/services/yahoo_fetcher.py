@@ -4,11 +4,13 @@ import random
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import requests
 from bs4 import BeautifulSoup
+
+from app.config import settings
 
 
 YAHOO_SEARCH_URL = "https://auctions.yahoo.co.jp/search/search"
@@ -43,24 +45,23 @@ def fetch_yahoo_candidates(
     max_price: int | None = None,
     exclude_words: list[str] | None = None,
 ) -> list[YahooCandidatePayload]:
-    """Fetch Yahoo auction search results with safe fallback and basic filtering."""
+    """Fetch Yahoo auction search results when enabled, otherwise use safe MVP fallback data."""
 
     sanitized = sanitize_keyword(keyword)
     capped_limit = max(1, min(limit, 50))
     exclude_words = [w.strip().lower() for w in (exclude_words or []) if w.strip()]
 
-    # polite random wait
-    time.sleep(random.uniform(0.2, 0.8))
-
-    try:
-        html = _search_html(sanitized, min_price=min_price, max_price=max_price)
-        parsed = _parse_candidates(html, sanitized, capped_limit)
-        filtered = _filter_candidates(parsed, min_price=min_price, max_price=max_price, exclude_words=exclude_words)
-        if filtered:
-            return filtered[:capped_limit]
-    except Exception:
-        # fall through to stable fallback output
-        pass
+    if _live_fetch_enabled():
+        _polite_wait()
+        try:
+            html = _search_html(sanitized, min_price=min_price, max_price=max_price)
+            parsed = _parse_candidates(html, sanitized, capped_limit)
+            filtered = _filter_candidates(parsed, min_price=min_price, max_price=max_price, exclude_words=exclude_words)
+            if filtered:
+                return filtered[:capped_limit]
+        except Exception:
+            # fall through to stable fallback output so the API remains available
+            pass
 
     fallback = _fallback_candidates(sanitized, capped_limit)
     return _filter_candidates(fallback, min_price=min_price, max_price=max_price, exclude_words=exclude_words)[:capped_limit]
@@ -68,6 +69,16 @@ def fetch_yahoo_candidates(
 
 def sanitize_keyword(keyword: str) -> str:
     return re.sub(r"\s+", " ", keyword).strip()
+
+
+def _live_fetch_enabled() -> bool:
+    return settings.yahoo_fetch_mode.strip().lower() == "live"
+
+
+def _polite_wait() -> None:
+    min_delay = max(0.0, settings.yahoo_request_min_delay_seconds)
+    max_delay = max(min_delay, settings.yahoo_request_max_delay_seconds)
+    time.sleep(random.uniform(min_delay, max_delay))
 
 
 def _search_html(keyword: str, min_price: int | None = None, max_price: int | None = None) -> str:
@@ -81,7 +92,7 @@ def _search_html(keyword: str, min_price: int | None = None, max_price: int | No
         YAHOO_SEARCH_URL,
         params=params,
         headers={"User-Agent": USER_AGENT},
-        timeout=10,
+        timeout=settings.yahoo_request_timeout_seconds,
     )
     response.raise_for_status()
     return response.text
@@ -147,7 +158,7 @@ def _auction_id_from_url(url: str, idx: int) -> str:
 
 
 def _fallback_candidates(keyword: str, limit: int) -> list[YahooCandidatePayload]:
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     rows: list[YahooCandidatePayload] = []
     for i in range(limit):
         aid = f"mvp-{keyword[:20]}-{i}-{uuid4().hex[:8]}"
