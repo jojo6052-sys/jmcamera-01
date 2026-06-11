@@ -55,10 +55,34 @@ then
   venv_needs_rebuild=false
 fi
 
+requirements_hash="$($PYTHON_BIN - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+
+digest = sha256()
+for name in ("requirements.txt", "requirements-dev.txt"):
+    path = Path(name)
+    digest.update(name.encode())
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+)"
+requirements_stamp=".venv/.requirements.sha256"
+deps_need_install=true
+if [ "$venv_needs_rebuild" = false ] && [ -f "$requirements_stamp" ] && [ "$(cat "$requirements_stamp")" = "$requirements_hash" ]; then
+  deps_need_install=false
+fi
+
 if [ "$venv_needs_rebuild" = true ]; then
   rm -rf .venv
   "$PYTHON_BIN" -m venv .venv
+fi
+
+if [ "$deps_need_install" = true ]; then
   .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+  printf '%s\n' "$requirements_hash" > "$requirements_stamp"
 fi
 DATABASE_URL=sqlite:///./migration_check.db .venv/bin/alembic upgrade head
 .venv/bin/python -m compileall app
