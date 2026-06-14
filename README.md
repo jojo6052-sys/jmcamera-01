@@ -123,6 +123,7 @@ CIログや共有用にJSONで結果を残したい場合は `--json` を付け�
 ```bash
 python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --json
 python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --skip-write-checks
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --report-file reports/phase1-verification.md
 ```
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=5.0, help="HTTP timeout seconds. Defaults to 5")
     parser.add_argument("--skip-write-checks", action="store_true", help="Skip the write smoke flow that creates a keyword, fetches candidates, and scores them.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON instead of human-readable lines.")
+    parser.add_argument("--report-file", help="Write a Markdown verification report to this path.")
     args = parser.parse_args()
 
     results = run_phase1_verification(
@@ -34,14 +36,45 @@ def main() -> int:
         include_write_checks=not args.skip_write_checks,
     )
 
+    if args.report_file:
+        write_markdown_report(Path(args.report_file), results)
+
     if args.json:
         print(json.dumps([result.__dict__ for result in results], ensure_ascii=False, indent=2))
     else:
-        for result in results:
-            marker = "PASS" if result.ok else "FAIL"
-            print(f"[{marker}] {result.name}: {result.detail}")
+        print_human_results(results)
 
     return 0 if all(result.ok for result in results) else 1
+
+
+def print_human_results(results: list[VerificationResult]) -> None:
+    for result in results:
+        marker = "PASS" if result.ok else "FAIL"
+        print(f"[{marker}] {result.name}: {result.detail}")
+
+
+def write_markdown_report(path: Path, results: list[VerificationResult]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    passed = sum(1 for result in results if result.ok)
+    total = len(results)
+    overall = "PASS" if passed == total else "FAIL"
+    lines = [
+        "# Phase 1 MVP Verification Report",
+        "",
+        f"Overall: **{overall}** ({passed}/{total} passed)",
+        "",
+        "| Check | Result | Detail |",
+        "| --- | --- | --- |",
+    ]
+    for result in results:
+        status = "PASS" if result.ok else "FAIL"
+        lines.append(f"| {escape_markdown_table(result.name)} | {status} | {escape_markdown_table(result.detail)} |")
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def escape_markdown_table(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", "<br>")
 
 
 def run_phase1_verification(

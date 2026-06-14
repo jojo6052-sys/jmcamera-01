@@ -28,3 +28,19 @@ def test_looks_like_vite_react_shell_accepts_built_shell() -> None:
 
 def test_looks_like_vite_react_shell_rejects_non_app_html() -> None:
     assert phase1_verify.looks_like_vite_react_shell("<html><body>not the app</body></html>") is False
+
+
+def test_write_markdown_report_records_overall_and_escapes_table_values(tmp_path) -> None:
+    report_path = tmp_path / "reports" / "phase1.md"
+    phase1_verify.write_markdown_report(
+        report_path,
+        [
+            phase1_verify.VerificationResult(name="backend|health", ok=True, detail="HTTP 200"),
+            phase1_verify.VerificationResult(name="frontend", ok=False, detail="bad|html"),
+        ],
+    )
+
+    report = report_path.read_text(encoding="utf-8")
+    assert "Overall: **FAIL** (1/2 passed)" in report
+    assert "backend\\|health" in report
+    assert "bad\\|html" in report
