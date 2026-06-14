@@ -41,8 +41,8 @@ fi
 import ast
 from pathlib import Path
 
-source_path = Path("scripts/smoke_check.py")
-ast.parse(source_path.read_text(), filename=str(source_path))
+for source_path in sorted(Path("scripts").glob("*.py")):
+    ast.parse(source_path.read_text(), filename=str(source_path))
 PY
 
 cd "$ROOT_DIR/backend"

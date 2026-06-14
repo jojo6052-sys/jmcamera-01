@@ -111,6 +111,20 @@ python scripts/smoke_check.py --base-url http://localhost:8001
 python scripts/smoke_check.py --base-url http://localhost:8001 --include-write-checks
 ```
 
+## Phase 1 Verify（次回動作確認用）
+Backendのread-only smoke check、FrontendのReact app shell確認、write smoke flowをまとめて確認する場合は、Compose起動後に以下を実行します。
+
+```bash
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173
+```
+
+CIログや共有用にJSONで結果を残したい場合は `--json` を付けます。DBに検証データを作りたくない場合は `--skip-write-checks` を付けてください。
+
+```bash
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --json
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --skip-write-checks
+```
+
 
 ## Dockerが無い環境でのローカル検証
 ```bash
