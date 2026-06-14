@@ -47,6 +47,7 @@ def test_phase_status_reports_db_counts_and_configuration(monkeypatch) -> None:
         payload = response.json()
         assert payload["phase"] == "MVP Phase 1"
         assert payload["status"] == "ready"
+        assert payload["core_ready"] is True
         assert payload["database"] == "ok"
         metrics = {item["label"]: item["count"] for item in payload["metrics"]}
         assert metrics["products"] == 1
@@ -56,6 +57,31 @@ def test_phase_status_reports_db_counts_and_configuration(monkeypatch) -> None:
         assert payload["ready_checks"]["analytics_ready"] is True
         assert payload["configuration"]["ebay_api_credentials_configured"] is True
         assert payload["configuration"]["ebay_compliance_configured"] is True
+        assert payload["pending_configuration"] == []
+    finally:
+        if previous_override is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = previous_override
+
+
+def test_phase_status_keeps_local_mvp_ready_when_external_configuration_is_pending(monkeypatch) -> None:
+    previous_override = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(settings, "ebay_client_id", "")
+    monkeypatch.setattr(settings, "ebay_client_secret", "")
+    monkeypatch.setattr(settings, "ebay_marketplace_deletion_verification_token", "")
+    monkeypatch.setattr(settings, "ebay_marketplace_deletion_endpoint_url", "")
+    try:
+        response = client.get("/api/phase/status")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "ready_with_configuration_pending"
+        assert payload["core_ready"] is True
+        assert payload["ready_checks"]["ebay_compliance_endpoint_ready"] is False
+        assert payload["configuration"]["ebay_api_credentials_configured"] is False
+        assert payload["configuration"]["ebay_compliance_configured"] is False
+        assert payload["pending_configuration"] == ["ebay_api_credentials", "ebay_compliance_endpoint"]
     finally:
         if previous_override is None:
             app.dependency_overrides.pop(get_db, None)
