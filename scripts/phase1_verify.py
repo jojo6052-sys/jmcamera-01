@@ -12,6 +12,9 @@ from dataclasses import dataclass
 import smoke_check
 
 
+EXPECTED_APP_TITLE = "JM Camera Sourcing AI"
+
+
 @dataclass(frozen=True)
 class VerificationResult:
     name: str
@@ -116,7 +119,10 @@ def check_frontend_shell(*, frontend_url: str, timeout: float) -> VerificationRe
 
 def looks_like_vite_react_shell(body: str) -> bool:
     lowered = body.lower()
-    return '<div id="root"' in lowered and ("/src/main" in lowered or "/assets/" in lowered)
+    has_root = '<div id="root"' in lowered
+    has_vite_entry = "/src/main" in lowered or "/assets/" in lowered
+    has_app_title = EXPECTED_APP_TITLE.lower() in lowered
+    return has_root and has_vite_entry and has_app_title
 
 
 def request_text(url: str, *, timeout: float) -> tuple[bool, str, str]:

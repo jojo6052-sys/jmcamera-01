@@ -15,19 +15,25 @@ PHASE1_VERIFY_SPEC.loader.exec_module(phase1_verify)
 
 
 def test_looks_like_vite_react_shell_accepts_dev_shell() -> None:
-    body = '<!doctype html><div id="root"></div><script type="module" src="/src/main.tsx"></script>'
+    body = '<!doctype html><title>JM Camera Sourcing AI</title><div id="root"></div><script type="module" src="/src/main.tsx"></script>'
 
     assert phase1_verify.looks_like_vite_react_shell(body) is True
 
 
 def test_looks_like_vite_react_shell_accepts_built_shell() -> None:
-    body = '<!doctype html><div id="root"></div><script type="module" src="/assets/index.js"></script>'
+    body = '<!doctype html><title>JM Camera Sourcing AI</title><div id="root"></div><script type="module" src="/assets/index.js"></script>'
 
     assert phase1_verify.looks_like_vite_react_shell(body) is True
 
 
 def test_looks_like_vite_react_shell_rejects_non_app_html() -> None:
     assert phase1_verify.looks_like_vite_react_shell("<html><body>not the app</body></html>") is False
+
+
+def test_looks_like_vite_react_shell_rejects_generic_vite_shell_without_app_title() -> None:
+    body = '<!doctype html><title>Vite App</title><div id="root"></div><script type="module" src="/src/main.tsx"></script>'
+
+    assert phase1_verify.looks_like_vite_react_shell(body) is False
 
 
 def test_write_markdown_report_records_overall_and_escapes_table_values(tmp_path) -> None:
