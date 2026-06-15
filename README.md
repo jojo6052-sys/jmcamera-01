@@ -96,6 +96,20 @@ RUN_DOCKER_CHECKS=true scripts/dev_check.sh
 
 `RUN_DOCKER_CHECKS=true` は `docker compose config` まで確認します。実際の起動確認は `docker compose up --build` と `python scripts/smoke_check.py --base-url http://localhost:8001 --include-write-checks` を併用してください。
 
+## Docker CLIをエージェント環境から使えるようにする
+Docker DesktopやComposeサービスがホスト側で起動していても、このエージェントが動くシェル/コンテナ内に `docker` CLI と Docker daemon への接続が無い場合、エージェントからは `docker: command not found` になります。まず以下で、この実行環境からDockerに到達できるか確認してください。
+
+```bash
+scripts/check_docker_access.sh
+```
+
+失敗する場合は、エージェントが使う同じ環境に対して以下を設定します。
+
+1. `docker version` と `docker compose version` が通るように Docker CLI / Compose plugin をインストールする。
+2. Dockerが別ホストやDocker Desktop側で動いている場合は、エージェント環境へ Docker daemon を公開する。Linux/devcontainerでは `/var/run/docker.sock:/var/run/docker.sock` をマウントし、リモートdaemonでは `DOCKER_HOST` を設定する。
+3. Docker Desktop + WSL を使う場合は、Docker DesktopのWSL integrationで、エージェントが実行されるdistroを有効化する。
+4. 再度 `scripts/check_docker_access.sh` を実行し、成功したら `docker compose exec backend pytest -q` と `docker compose exec frontend npm run build` をエージェントから実行できる状態です。
+
 ## Smoke Check（起動後の主要API確認）
 `docker compose up --build` 後、別ターミナルで主要な読み取りAPIをまとめて確認できます。
 

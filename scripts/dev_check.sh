@@ -45,6 +45,10 @@ for source_path in sorted(Path("scripts").glob("*.py")):
     ast.parse(source_path.read_text(), filename=str(source_path))
 PY
 
+for shell_script in scripts/*.sh; do
+  sh -n "$shell_script"
+done
+
 cd "$ROOT_DIR/backend"
 venv_needs_rebuild=true
 if [ -x .venv/bin/python ] && .venv/bin/python - <<'PY' >/dev/null 2>&1
