@@ -72,12 +72,30 @@ def run_check(*, base_url: str, check: Check, timeout: float) -> tuple[bool, str
         return False, f"HTTP {status}; expected {check.expected_status}"
 
     parsed = parse_json(body)
-    if check.path == "/api/phase/status" and isinstance(parsed, dict):
-        database = parsed.get("database")
-        ready_checks = parsed.get("ready_checks")
-        if database != "ok" or not isinstance(ready_checks, dict) or not ready_checks.get("database_connected"):
-            return False, "phase status did not report database_connected"
+    if check.path == "/api/phase/status":
+        if not isinstance(parsed, dict):
+            return False, "phase status response was not a JSON object"
+        return validate_phase_status(parsed, status=status)
     return True, f"HTTP {status}"
+
+
+def validate_phase_status(payload: dict, *, status: int) -> tuple[bool, str]:
+    database = payload.get("database")
+    ready_checks = payload.get("ready_checks")
+    core_ready = payload.get("core_ready")
+    phase_status = payload.get("status", "unknown")
+    pending_configuration = payload.get("pending_configuration")
+
+    if database != "ok" or not isinstance(ready_checks, dict) or not ready_checks.get("database_connected"):
+        return False, "phase status did not report database_connected"
+    if core_ready is not True:
+        return False, f"phase status core_ready is not true: {core_ready!r}"
+
+    if isinstance(pending_configuration, list) and pending_configuration:
+        pending_detail = ",".join(str(item) for item in pending_configuration)
+    else:
+        pending_detail = "none"
+    return True, f"HTTP {status}; status={phase_status}; core_ready={core_ready}; pending_configuration={pending_detail}"
 
 
 def run_write_checks(*, base_url: str, timeout: float) -> tuple[bool, str]:

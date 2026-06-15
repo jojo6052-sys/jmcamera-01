@@ -48,6 +48,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
+FrontendはVite 8系のため Node.js 20.19以上（または22.12以上）が必要です。Docker環境では `frontend/Dockerfile` の `node:20.19-alpine` を使います。
+
 `docker-compose.yml` には db / redis / backend / frontend の healthcheck を設定しているため、起動後は以下で状態を確認できます。
 
 ```bash
@@ -94,6 +96,20 @@ RUN_DOCKER_CHECKS=true scripts/dev_check.sh
 
 `RUN_DOCKER_CHECKS=true` は `docker compose config` まで確認します。実際の起動確認は `docker compose up --build` と `python scripts/smoke_check.py --base-url http://localhost:8001 --include-write-checks` を併用してください。
 
+## Docker CLIをエージェント環境から使えるようにする
+Docker DesktopやComposeサービスがホスト側で起動していても、このエージェントが動くシェル/コンテナ内に `docker` CLI と Docker daemon への接続が無い場合、エージェントからは `docker: command not found` になります。まず以下で、この実行環境からDockerに到達できるか確認してください。
+
+```bash
+scripts/check_docker_access.sh
+```
+
+失敗する場合は、エージェントが使う同じ環境に対して以下を設定します。
+
+1. `docker version` と `docker compose version` が通るように Docker CLI / Compose plugin をインストールする。
+2. Dockerが別ホストやDocker Desktop側で動いている場合は、エージェント環境へ Docker daemon を公開する。Linux/devcontainerでは `/var/run/docker.sock:/var/run/docker.sock` をマウントし、リモートdaemonでは `DOCKER_HOST` を設定する。
+3. Docker Desktop + WSL を使う場合は、Docker DesktopのWSL integrationで、エージェントが実行されるdistroを有効化する。
+4. 再度 `scripts/check_docker_access.sh` を実行し、成功したら `docker compose exec backend pytest -q` と `docker compose exec frontend npm run build` をエージェントから実行できる状態です。
+
 ## Smoke Check（起動後の主要API確認）
 `docker compose up --build` 後、別ターミナルで主要な読み取りAPIをまとめて確認できます。
 
@@ -107,6 +123,21 @@ python scripts/smoke_check.py --base-url http://localhost:8001
 
 ```bash
 python scripts/smoke_check.py --base-url http://localhost:8001 --include-write-checks
+```
+
+## Phase 1 Verify（次回動作確認用）
+Backendのread-only smoke check、FrontendのReact app shell確認、write smoke flowをまとめて確認する場合は、Compose起動後に以下を実行します。
+
+```bash
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173
+```
+
+CIログや共有用にJSONで結果を残したい場合は `--json` を付けます。DBに検証データを作りたくない場合は `--skip-write-checks` を付けてください。
+
+```bash
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --json
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --skip-write-checks
+python scripts/phase1_verify.py --backend-base-url http://localhost:8001 --frontend-url http://localhost:5173 --report-file reports/phase1-verification.md
 ```
 
 
@@ -134,10 +165,21 @@ es_number,title,normalized_title,brand,model,category,mount,condition_rank,purch
 
 ## Phase 1 - PR3 追加機能（MVP版）
 - `GET/POST/PUT/DELETE /api/search-keywords`
-- `POST /api/yahoo/search`（MVPでは安全なダミー候補生成で保存、後続PRでスクレイパ差し替え）
+- `POST /api/yahoo/search`（デフォルトは安全なfallback候補生成で保存。`.env` の `YAHOO_FETCH_MODE=live` でYahoo検索ページ取得を明示的に有効化）
 - `GET /api/candidates`
 - `GET /api/candidates/{id}`
 
+### Yahoo候補取得モード
+MVPの安定検証では、外部サイトへアクセスしない `YAHOO_FETCH_MODE=fallback` をデフォルトにしています。実Yahoo検索ページ取得を検証する場合のみ以下を `.env` に設定してください。
+
+```env
+YAHOO_FETCH_MODE=live
+YAHOO_REQUEST_MIN_DELAY_SECONDS=0.2
+YAHOO_REQUEST_MAX_DELAY_SECONDS=0.8
+YAHOO_REQUEST_TIMEOUT_SECONDS=10
+```
+
+`live` モードでも取得失敗・ページ構造変更・アクセス制限時はfallback候補を返し、API全体を落とさない設計です。過剰アクセスを避けるため、ランダム待機とtimeoutを設定値で制御します。
 
 ## Phase 1 - PR4 追加機能
 - `POST /api/candidates/{id}/feedback`: 仕入れ判断フィードバック保存
@@ -215,7 +257,7 @@ https://www.ebay.com/usr/example-seller
 https://www.ebay.com/sch/i.html?_ssn=example-seller
 ```
 
-> 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。eBayが自動取得を403 Forbiddenで拒否した場合は `fetch_status=blocked`、その他のページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。本格運用ではeBay公式API連携やレート制御を追加する予定です。
+> 注意: MVPではeBayの公開検索ページを控えめに取得して解析します。eBayが自動取得を403 Forbiddenで拒否した場合は `fetch_status=blocked`、その他のページ構造変更・アクセス制限時は `fetch_status=failed` としてセラー情報だけを残し、API全体は落とさない設計です。公開ページ取得を止めたい場合は `.env` の `EBAY_PUBLIC_FETCH_MODE=disabled` を設定し、Browse APIまたは保存HTMLインポートを使ってください。
 
 
 ## MVP Phase Status
@@ -229,6 +271,13 @@ curl -s http://localhost:8001/api/phase/status | python -m json.tool
 ```
 
 `status=ready_with_configuration_pending` の場合でも、未設定の外部連携（例: eBay compliance endpoint URL / verification token）が残っていることを示すだけで、ローカルMVP機能そのものは確認できます。
+
+### Phase 1 MVP 検証済み項目と次PR候補
+- 検証済み: Docker Compose起動、`/health`、`/api/health`、`/api/phase/status`、read/write smoke check、backend pytest、frontend build。
+- `core_ready=true`: CSVインポート、分析API/画面、検索KW、Yahoo候補、推薦スコア、フィードバック、ライバル分析のローカルMVP導線は確認済みとして扱う。
+- `status=ready_with_configuration_pending`: ローカルMVPはreadyだが、Production向けの eBay API credentials / Marketplace Account Deletion endpoint 設定が未完了であることを示す。
+- 外部設定: eBay Production keyset取得後に `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET` を設定し、外部公開HTTPS URL確定後にMarketplace Account Deletion endpoint URL / verification tokenを設定する。
+- Follow-up候補: Yahoo取得の本番差し替え・レート制御強化、eBay Sold履歴の公式API/許可済み導線、npm auditで検出されるfrontend依存脆弱性の精査を次PR候補にする。
 
 ## eBay Marketplace Account Deletion endpoint
 Production keysetのcompliance対応用に、以下のendpointを用意しています。
@@ -244,6 +293,18 @@ EBAY_MARKETPLACE_DELETION_ENDPOINT_URL=https://your-domain.example/api/ebay/mark
 ```
 
 > eBay Developer Portalに登録するendpointは外部から到達可能なHTTPS URLである必要があります。`localhost`やDocker内部URLは登録できません。
+
+## eBay公開ページ取得モード（MVP fallback）
+Competitor Researchの公開検索ページ取得は、過剰アクセス防止のためdelay/timeoutを `.env` で制御できます。デフォルトは現状互換の `live` です。
+
+```env
+EBAY_PUBLIC_FETCH_MODE=live
+EBAY_PUBLIC_REQUEST_MIN_DELAY_SECONDS=0.2
+EBAY_PUBLIC_REQUEST_MAX_DELAY_SECONDS=0.8
+EBAY_PUBLIC_REQUEST_TIMEOUT_SECONDS=12
+```
+
+公開ページ取得を行わず、eBay Browse API（出品中）や保存HTMLインポート（Sold Items）だけで検証する場合は `EBAY_PUBLIC_FETCH_MODE=disabled` を設定してください。
 
 ## eBay Browse API連携（出品中商品の安定取得）
 Production keyset取得後は、以下を `.env` に設定するとCompetitor Researchの「出品中」取得でeBay Browse APIを優先します。

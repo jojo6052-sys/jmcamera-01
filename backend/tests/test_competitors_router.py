@@ -180,6 +180,45 @@ def test_fetch_competitor_items_uses_browse_api_for_active_when_credentials_exis
     assert rows[0].external_item_id == "api-active-1"
 
 
+def test_fetch_competitor_items_skips_public_fetch_when_disabled(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "ebay_client_id", "")
+    monkeypatch.setattr(settings, "ebay_client_secret", "")
+    monkeypatch.setattr(settings, "ebay_public_fetch_mode", "disabled")
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("public eBay fetch should not run when disabled")
+
+    monkeypatch.setattr("app.services.ebay_research._fetch_html", fail_if_called)
+
+    seller_username, rows = fetch_competitor_items("https://www.ebay.com/str/camera-pro", include_active=True, include_sold=True, limit=10)
+
+    assert seller_username == "camera-pro"
+    assert rows == []
+
+
+def test_fetch_competitor_items_uses_public_fetch_when_live(monkeypatch) -> None:
+    html = """
+    <ul>
+      <li class="s-item">
+        <a class="s-item__link" href="https://www.ebay.com/itm/Canon-AE-1/123456789012"><span class="s-item__title">Canon AE-1</span></a>
+        <span class="s-item__price">US $199.99</span>
+      </li>
+    </ul>
+    """
+    monkeypatch.setattr(settings, "ebay_client_id", "")
+    monkeypatch.setattr(settings, "ebay_client_secret", "")
+    monkeypatch.setattr(settings, "ebay_public_fetch_mode", "live")
+    monkeypatch.setattr("app.services.ebay_research.time.sleep", lambda _seconds: None)
+    monkeypatch.setattr("app.services.ebay_research._fetch_html", lambda *_args, **_kwargs: html)
+
+    seller_username, rows = fetch_competitor_items("https://www.ebay.com/str/camera-pro", include_active=True, include_sold=False, limit=10)
+
+    assert seller_username == "camera-pro"
+    assert len(rows) == 1
+    assert rows[0].external_item_id == "123456789012"
+    assert rows[0].item_status == "active"
+
+
 def test_fetch_html_converts_ebay_403_to_blocked_error(monkeypatch) -> None:
     class FakeResponse:
         status_code = 403

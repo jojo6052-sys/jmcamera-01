@@ -5,6 +5,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, JSON, Numeric, String, Tex
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.time import utc_now
 
 
 class CompetitorSeller(Base):
@@ -21,8 +22,8 @@ class CompetitorSeller(Base):
     avg_active_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     avg_sold_price: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     last_analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
     items: Mapped[list["CompetitorItem"]] = relationship(
         back_populates="seller",
@@ -49,8 +50,8 @@ class CompetitorItem(Base):
     sold_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source_url: Mapped[str] = mapped_column(String(1024), nullable=False)
     raw: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
     seller: Mapped[CompetitorSeller] = relationship(back_populates="items")
 
