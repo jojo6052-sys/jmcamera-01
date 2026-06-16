@@ -50,9 +50,11 @@ def get_phase_status(db: Session = Depends(get_db)) -> PhaseStatusRead:
     if not ebay_compliance_configured:
         pending_configuration.append("ebay_compliance_endpoint")
 
+    phase_status = "ready" if core_ready and not pending_configuration else "ready_with_configuration_pending"
+
     return PhaseStatusRead(
         phase="MVP Phase 1",
-        status="ready" if all(ready_checks.values()) else "ready_with_configuration_pending",
+        status=phase_status,
         core_ready=core_ready,
         database="ok",
         metrics=metrics,

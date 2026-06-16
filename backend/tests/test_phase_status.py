@@ -87,3 +87,27 @@ def test_phase_status_keeps_local_mvp_ready_when_external_configuration_is_pendi
             app.dependency_overrides.pop(get_db, None)
         else:
             app.dependency_overrides[get_db] = previous_override
+
+
+def test_phase_status_stays_pending_when_only_ebay_credentials_are_missing(monkeypatch) -> None:
+    previous_override = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(settings, "ebay_client_id", "")
+    monkeypatch.setattr(settings, "ebay_client_secret", "")
+    monkeypatch.setattr(settings, "ebay_marketplace_deletion_verification_token", "token")
+    monkeypatch.setattr(settings, "ebay_marketplace_deletion_endpoint_url", "https://example.com/api/ebay/marketplace-account-deletion")
+    try:
+        response = client.get("/api/phase/status")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "ready_with_configuration_pending"
+        assert payload["core_ready"] is True
+        assert payload["ready_checks"]["ebay_compliance_endpoint_ready"] is True
+        assert payload["configuration"]["ebay_api_credentials_configured"] is False
+        assert payload["configuration"]["ebay_compliance_configured"] is True
+        assert payload["pending_configuration"] == ["ebay_api_credentials"]
+    finally:
+        if previous_override is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = previous_override
