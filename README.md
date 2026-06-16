@@ -103,12 +103,20 @@ Docker DesktopやComposeサービスがホスト側で起動していても、�
 scripts/check_docker_access.sh
 ```
 
+CLI/daemon疎通だけでなく、実際にコンテナをpull/extract/startできる権限まで確認する場合は以下を実行します。
+
+```bash
+scripts/check_docker_access.sh --runtime-smoke
+```
+
 失敗する場合は、エージェントが使う同じ環境に対して以下を設定します。
 
 1. `docker version` と `docker compose version` が通るように Docker CLI / Compose plugin をインストールする。
 2. Dockerが別ホストやDocker Desktop側で動いている場合は、エージェント環境へ Docker daemon を公開する。Linux/devcontainerでは `/var/run/docker.sock:/var/run/docker.sock` をマウントし、リモートdaemonでは `DOCKER_HOST` を設定する。
 3. Docker Desktop + WSL を使う場合は、Docker DesktopのWSL integrationで、エージェントが実行されるdistroを有効化する。
-4. 再度 `scripts/check_docker_access.sh` を実行し、成功したら `docker compose exec backend pytest -q` と `docker compose exec frontend npm run build` をエージェントから実行できる状態です。
+4. 再度 `scripts/check_docker_access.sh --runtime-smoke` を実行し、成功したら `docker compose exec backend pytest -q` と `docker compose exec frontend npm run build` をエージェントから実行できる状態です。
+
+詳細な設定例は [`docs/agent-docker-setup.md`](docs/agent-docker-setup.md) を参照してください。
 
 ## Smoke Check（起動後の主要API確認）
 `docker compose up --build` 後、別ターミナルで主要な読み取りAPIをまとめて確認できます。
