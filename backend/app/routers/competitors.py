@@ -1,6 +1,5 @@
 import csv
 import io
-from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
@@ -15,6 +14,7 @@ from app.models.search_keyword import SearchKeyword
 from app.schemas.competitors import CompetitorAnalyzeRequest, CompetitorAnalyzeResponse, CompetitorInsights, CompetitorItemRead, CompetitorKeywordBulkCreate, CompetitorKeywordCreate, CompetitorKeywordSuggestion, CompetitorSellerRead, CompetitorTopTerm
 from app.schemas.keywords import SearchKeywordRead
 from app.services.ebay_research import CompetitorItemPayload, EbayFetchBlockedError, build_ebay_seller_search_url, extract_ebay_seller_username, fetch_competitor_items, _parse_ebay_items
+from app.utils.time import utc_now
 
 router = APIRouter(prefix="/api/competitors", tags=["competitors"])
 
@@ -381,7 +381,7 @@ def upsert_competitor_seller(
         )
         .one_or_none()
     )
-    now = datetime.utcnow()
+    now = utc_now()
     if seller is None:
         seller = CompetitorSeller(
             marketplace="ebay",
@@ -404,7 +404,7 @@ def upsert_competitor_seller(
 
 def upsert_competitor_items(db: Session, *, seller: CompetitorSeller, payloads: list[CompetitorItemPayload]) -> list[CompetitorItem]:
     rows: list[CompetitorItem] = []
-    now = datetime.utcnow()
+    now = utc_now()
     for payload in payloads:
         row = (
             db.query(CompetitorItem)

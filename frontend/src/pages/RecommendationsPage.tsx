@@ -4,7 +4,7 @@ import type { Candidate, FeedbackRequest, RecommendationScore } from '../types/c
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
-type RankFilter = '' | 'A' | 'B' | 'C'
+type RankFilter = '' | 'S' | 'A' | 'B' | 'C' | 'NG'
 type StatusFilter = '' | 'new' | 'purchase' | 'review' | 'skip'
 type SortBy = 'created' | 'price' | 'score' | 'rank' | 'title' | 'end_time'
 type SortDir = 'asc' | 'desc'
@@ -26,7 +26,7 @@ function formatPercent(value: number | null | undefined) {
 
 
 function rankWeight(rank: string | null | undefined) {
-  const weights: Record<string, number> = { A: 3, B: 2, C: 1 }
+  const weights: Record<string, number> = { S: 4, A: 3, B: 2, C: 1, NG: 0 }
   return rank ? (weights[rank] ?? 0) : 0
 }
 
@@ -250,9 +250,11 @@ export default function RecommendationsPage() {
             <div className="text-xs text-slate-600 mb-1">ランク</div>
             <select className="border rounded px-3 py-2 w-24" value={rank} onChange={(e) => setRank(e.target.value as RankFilter)}>
               <option value="">All</option>
+              <option value="S">S</option>
               <option value="A">A</option>
               <option value="B">B</option>
               <option value="C">C</option>
+              <option value="NG">NG</option>
             </select>
           </div>
 
