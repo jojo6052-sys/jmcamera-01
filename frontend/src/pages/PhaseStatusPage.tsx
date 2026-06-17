@@ -33,7 +33,31 @@ const METRIC_LABELS: Record<string, string> = {
   competitor_items: 'ライバル商品',
 }
 
-export default function PhaseStatusPage() {
+type PhaseStatusPageProps = {
+  onOpenGuide?: () => void
+}
+
+function getNextActions(status: PhaseStatus): string[] {
+  if (!status.core_ready) {
+    return [
+      'Ready Checks の「要確認」項目を確認し、backend pytest / frontend build / smoke check を再実行してください。',
+      'DB接続や主要データ件数に問題がある場合は、Compose起動状態とマイグレーション結果を確認してください。',
+    ]
+  }
+
+  if (status.pending_configuration.length > 0) {
+    return [
+      'ローカルMVPは確認可能です。次は System Manual の流れに沿ってCSVインポート、候補取得、推薦判断を確認してください。',
+      'Production化する前に、未設定の eBay API credentials / Marketplace Account Deletion endpoint を準備してください。',
+    ]
+  }
+
+  return [
+    'ローカルMVPとProduction向け設定がそろっています。Phase verification reportを保存し、PRレビューまたは運用検証へ進んでください。',
+  ]
+}
+
+export default function PhaseStatusPage({ onOpenGuide }: PhaseStatusPageProps) {
   const [status, setStatus] = useState<PhaseStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -118,6 +142,26 @@ export default function PhaseStatusPage() {
               ) : (
                 <p className="mt-3 text-xs text-emerald-700">Production連携設定も完了しています。</p>
               )}
+            </div>
+
+
+            <div className="bg-white rounded shadow p-4 lg:col-span-2">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="font-semibold">Recommended Next Actions</h3>
+                  <p className="text-xs text-slate-500">現在のPhase statusに応じた次の確認ポイントです。</p>
+                </div>
+                {onOpenGuide && (
+                  <button className="px-3 py-2 rounded bg-slate-800 text-white text-sm" onClick={onOpenGuide}>
+                    System Manualを開く
+                  </button>
+                )}
+              </div>
+              <ol className="list-decimal pl-5 space-y-2 text-sm text-slate-700 leading-6">
+                {getNextActions(status).map((action) => (
+                  <li key={action}>{action}</li>
+                ))}
+              </ol>
             </div>
 
             <div className="bg-white rounded shadow p-4 lg:col-span-2">

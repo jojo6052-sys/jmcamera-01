@@ -72,6 +72,9 @@ docker compose exec backend alembic upgrade head
 
 自動マイグレーションを止めたい場合は `.env` の `RUN_MIGRATIONS=false` を設定してください。
 
+## システムマニュアル
+このシステムの目的、全体構成、大まかな使い方、Phase 1 MVPの見方、将来ロードマップは [`docs/system-manual.md`](docs/system-manual.md) にまとめています。Frontendにも `System Manual` タブを追加しているため、ブラウザ上で同じ流れを確認できます。
+
 ## Phase 1 MVPに含まれる主要機能
 - CSVインポートとProduct Analytics
 - Search Keywords管理とYahoo候補取得
