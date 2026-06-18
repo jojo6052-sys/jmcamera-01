@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tokyo Serene Days | 時間を取り戻す旅へ。</title>
+    <meta
+      name="description"
+      content="東京の静かな場所と、時間を大切にするヒントを週1回お届けするTokyo Serene Daysの無料レター。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #f4efe5;
+        --surface-color: #fffaf0;
+        --primary-color: #173f35;
+        --primary-dark: #0d2b24;
+        --secondary-color: #1d3448;
+        --text-color: #24302c;
+        --muted-color: #6c746d;
+        --line-color: rgba(23, 63, 53, 0.16);
+        --shadow: 0 24px 70px rgba(29, 52, 72, 0.14);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Noto Sans JP', sans-serif;
+        line-height: 1.8;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .hero {
+        position: relative;
+        min-height: 92vh;
+        display: grid;
+        place-items: center;
+        padding: 7rem 1.5rem;
+        color: #fffaf0;
+        isolation: isolate;
+      }
+
+      .hero-image,
+      .hero-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .hero-image {
+        object-fit: cover;
+        z-index: -2;
+      }
+
+      .hero-overlay {
+        background: linear-gradient(135deg, rgba(13, 43, 36, 0.78), rgba(29, 52, 72, 0.48));
+        z-index: -1;
+      }
+
+      .hero-content {
+        width: min(880px, 100%);
+        text-align: center;
+      }
+
+      .eyebrow {
+        margin: 0 0 0.8rem;
+        color: var(--primary-color);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .hero .eyebrow {
+        color: #e7d8b9;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        font-family: 'Noto Serif JP', serif;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        line-height: 1.35;
+      }
+
+      h1 {
+        font-size: clamp(3rem, 8vw, 6.5rem);
+      }
+
+      h2 {
+        color: var(--secondary-color);
+        font-size: clamp(2rem, 4vw, 3.2rem);
+      }
+
+      .hero-copy {
+        width: min(720px, 100%);
+        margin: 1.5rem auto 2rem;
+        font-size: clamp(1rem, 2vw, 1.2rem);
+      }
+
+      .newsletter-form {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) auto;
+        gap: 0.8rem;
+        width: min(680px, 100%);
+        margin: 0 auto;
+      }
+
+      .newsletter-form input {
+        min-height: 56px;
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        border-radius: 999px;
+        padding: 0 1.4rem;
+        background: rgba(255, 250, 240, 0.94);
+        color: var(--text-color);
+        outline: none;
+      }
+
+      .newsletter-form input:focus {
+        border-color: #d9b56f;
+        box-shadow: 0 0 0 4px rgba(217, 181, 111, 0.22);
+      }
+
+      .newsletter-form button {
+        min-height: 56px;
+        border: 0;
+        border-radius: 999px;
+        padding: 0 1.6rem;
+        background: var(--primary-color);
+        color: #fffaf0;
+        cursor: pointer;
+        font-weight: 700;
+        transition: background 180ms ease, transform 180ms ease;
+      }
+
+      .newsletter-form button:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+      }
+
+      .form-message {
+        grid-column: 1 / -1;
+        min-height: 1.6rem;
+        margin: 0;
+        color: inherit;
+        font-size: 0.92rem;
+      }
+
+      .section {
+        width: min(1120px, calc(100% - 3rem));
+        margin: 0 auto;
+        padding: 6rem 0;
+      }
+
+      .narrow {
+        width: min(820px, calc(100% - 3rem));
+        text-align: center;
+      }
+
+      .section p {
+        color: var(--muted-color);
+      }
+
+      .story-section {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 3rem;
+        align-items: center;
+      }
+
+      .founder-card,
+      .gallery-item,
+      .testimonial-card,
+      .cta-box,
+      .benefit-card {
+        border: 1px solid var(--line-color);
+        background: rgba(255, 250, 240, 0.74);
+        box-shadow: var(--shadow);
+      }
+
+      .founder-card {
+        margin: 0;
+        padding: 1rem;
+        border-radius: 28px;
+        transform: rotate(1.2deg);
+      }
+
+      .founder-placeholder {
+        display: grid;
+        min-height: 360px;
+        place-items: center;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #e3d5bd, #f8f1e3);
+        color: var(--secondary-color);
+        font-family: 'Noto Serif JP', serif;
+        font-size: 1.5rem;
+      }
+
+      .founder-card figcaption,
+      .gallery-item figcaption {
+        padding: 1rem 0.4rem 0.3rem;
+        color: var(--muted-color);
+        font-size: 0.92rem;
+      }
+
+      .benefit-grid,
+      .gallery-grid,
+      .testimonial-grid {
+        display: grid;
+        gap: 1.25rem;
+        margin-top: 2rem;
+      }
+
+      .benefit-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .benefit-card {
+        min-height: 170px;
+        border-radius: 26px;
+        padding: 1.5rem;
+      }
+
+      .benefit-icon {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: #fffaf0;
+        font-family: 'Noto Serif JP', serif;
+        font-weight: 700;
+      }
+
+      .gallery-grid,
+      .testimonial-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .gallery-item {
+        margin: 0;
+        overflow: hidden;
+        border-radius: 28px;
+      }
+
+      .gallery-item img {
+        width: 100%;
+        height: 310px;
+        object-fit: cover;
+      }
+
+      .testimonial-card {
+        border-radius: 26px;
+        padding: 1.6rem;
+      }
+
+      .testimonial-card span {
+        color: var(--primary-color);
+        font-weight: 700;
+      }
+
+      .cta-box {
+        border-radius: 34px;
+        padding: clamp(2rem, 5vw, 4rem);
+        text-align: center;
+        background: linear-gradient(135deg, #ede2cb, #fff8ea);
+      }
+
+      .footer {
+        display: grid;
+        grid-template-columns: 1.2fr auto 1.2fr;
+        gap: 2rem;
+        align-items: center;
+        padding: 2.5rem max(1.5rem, calc((100vw - 1120px) / 2));
+        border-top: 1px solid var(--line-color);
+        color: var(--muted-color);
+        font-size: 0.86rem;
+      }
+
+      .footer-brand {
+        margin: 0;
+        color: var(--secondary-color);
+        font-family: 'Noto Serif JP', serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .footer-social,
+      .footer-logos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+      }
+
+      .footer-logos {
+        justify-content: flex-end;
+      }
+
+      .footer a:hover {
+        color: var(--primary-color);
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @media (max-width: 900px) {
+        .story-section,
+        .footer {
+          grid-template-columns: 1fr;
+        }
+
+        .benefit-grid,
+        .gallery-grid,
+        .testimonial-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .benefit-card {
+          display: flex;
+          min-height: auto;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .footer-logos {
+          justify-content: flex-start;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .hero {
+          min-height: 86vh;
+          padding: 5rem 1rem;
+        }
+
+        .newsletter-form {
+          grid-template-columns: 1fr;
+        }
+
+        .section {
+          width: min(100% - 2rem, 1120px);
+          padding: 4rem 0;
+        }
+
+        .gallery-item img {
+          height: 240px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <img
+        class="hero-image"
+        src="https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1800&q=85"
+        alt="静かな東京の路地"
+      />
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p class="eyebrow">Tokyo Serene Days</p>
+        <h1>時間を取り戻す旅へ。</h1>
+        <p class="hero-copy">
+          東京には、まだ静かな時間が残っています。毎週1回、東京の隠れた場所と時間を大切にするヒントをお届けします。
+        </p>
+        <form class="newsletter-form" data-newsletter-form novalidate>
+          <label class="sr-only" for="hero-email">メールアドレス</label>
+          <input id="hero-email" type="email" placeholder="メールアドレスを入力" aria-describedby="hero-email-message" />
+          <button type="submit">無料レターを受け取る</button>
+          <p id="hero-email-message" class="form-message" aria-live="polite"></p>
+        </form>
+      </div>
+    </header>
+
+    <main>
+      <section class="section narrow">
+        <p class="eyebrow">Question</p>
+        <h2>なぜ私たちはいつも急いでいるのか</h2>
+        <p>
+          朝から夜まで届く通知、次々に埋まる予定、止まらない情報の流れ。便利になったはずの暮らしの中で、私たちは立ち止まる余白を少しずつ手放してきました。東京の静かな路地や小さな店、古いカメラのシャッター音に耳を澄ませることは、自分の時間を取り戻すための小さな入口です。
+        </p>
+      </section>
+
+      <section class="section story-section">
+        <div>
+          <p class="eyebrow">Founder Story</p>
+          <h2>12年間の会社員生活を辞めて気づいたこと</h2>
+          <p>
+            私はエンジニアとして12年間働いた後、家族との時間を大切にしたいと考え独立しました。東京を歩きながら気づいたのは、本当に豊かな人は時間を大切にしているということでした。
+          </p>
+          <p>
+            Tokyo Serene Daysでは、急がない旅、余白のある暮らし、写真を待つ楽しさを、毎週のレターとして丁寧にお届けします。
+          </p>
+        </div>
+        <figure class="founder-card">
+          <div class="founder-placeholder">Photo / Memo</div>
+          <figcaption>白井丈太郎氏の写真やメモ書き画像を配置できます。</figcaption>
+        </figure>
+      </section>
+
+      <section class="section">
+        <p class="eyebrow">Benefits</p>
+        <h2>週1回、こんな内容をお届けします</h2>
+        <div class="benefit-grid">
+          <article class="benefit-card"><span class="benefit-icon">路</span><p>東京の静かな場所の紹介</p></article>
+          <article class="benefit-card"><span class="benefit-icon">物</span><p>日本文化の小さな物語</p></article>
+          <article class="benefit-card"><span class="benefit-icon">時</span><p>時間を大切にするためのヒント</p></article>
+          <article class="benefit-card"><span class="benefit-icon">写</span><p>フィルムカメラの楽しさ</p></article>
+          <article class="benefit-card"><span class="benefit-icon">泊</span><p>東京で体験できる宿泊・散策案</p></article>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="eyebrow">Gallery</p>
+        <h2>静けさのある風景</h2>
+        <div class="gallery-grid">
+          <figure class="gallery-item">
+            <img src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=900&q=80" alt="夕暮れの東京の路地" />
+            <figcaption>夕暮れ、音が少し遠のく路地。</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80" alt="木製テーブルの上のクラシックカメラ" />
+            <figcaption>古いカメラが教えてくれる、待つ楽しみ。</figcaption>
+          </figure>
+          <figure class="gallery-item">
+            <img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=80" alt="静かな日本の街並み" />
+            <figcaption>観光地のすぐ隣にある、静かな東京。</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="eyebrow">Community</p>
+        <h2>読者の声</h2>
+        <div class="testimonial-grid">
+          <article class="testimonial-card"><p>「朝のコーヒーを飲みながら読むと、週末の過ごし方が少し丁寧になります。」</p><span>Reader 1</span></article>
+          <article class="testimonial-card"><p>「旅程を詰め込まない旅の良さを思い出せました。小さな路地の紹介が好きです。」</p><span>Reader 2</span></article>
+          <article class="testimonial-card"><p>「フィルムカメラの話が懐かしく、写真を撮る時間そのものを楽しめます。」</p><span>Reader 3</span></article>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="cta-title">
+        <div class="cta-box">
+          <p class="eyebrow">Letter</p>
+          <h2 id="cta-title">静かな東京から、週に一度の手紙を。</h2>
+          <p>忙しさから少し離れて、時間を大切にする暮らしのヒントを受け取りませんか。</p>
+          <form class="newsletter-form" data-newsletter-form novalidate>
+            <label class="sr-only" for="cta-email">メールアドレス</label>
+            <input id="cta-email" type="email" placeholder="メールアドレスを入力" aria-describedby="cta-email-message" />
+            <button type="submit">無料レターを受け取る</button>
+            <p id="cta-email-message" class="form-message" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div>
+        <p class="footer-brand">Tokyo Serene Days</p>
+        <p>運営者: JM CAMERA / 白井丈太郎</p>
+        <a href="/privacy">プライバシーポリシー</a>
+      </div>
+      <nav class="footer-social" aria-label="SNSリンク">
+        <a href="https://www.instagram.com/">Instagram</a>
+        <a href="https://www.facebook.com/">Facebook</a>
+        <a href="https://x.com/">X</a>
+      </nav>
+      <div class="footer-logos" aria-label="関連ブランド">
+        <a href="https://example.com/jm-camera">JM CAMERA</a>
+        <a href="https://example.com/jm-stay">JM STAY</a>
+        <a href="https://example.com/tokyo-serene-days">Tokyo Serene Days</a>
+      </div>
+    </footer>
+
+    <script>
+      const forms = document.querySelectorAll('[data-newsletter-form]');
+
+      forms.forEach((form) => {
+        form.addEventListener('submit', (event) => {
+          event.preventDefault();
+
+          const input = form.querySelector('input[type="email"]');
+          const message = form.querySelector('.form-message');
+          const email = input.value.trim();
+
+          if (!email) {
+            message.textContent = 'メールアドレスを入力してください。';
+            return;
+          }
+
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            message.textContent = '有効なメールアドレスを入力してください。';
+            return;
+          }
+
+          message.textContent = 'ご登録ありがとうございます。次回のレターをお楽しみに。';
+          input.value = '';
+        });
+      });
+    </script>
+  </body>
+</html>
