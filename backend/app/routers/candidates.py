@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.recommendation_score import RecommendationScore
+from app.models.scoring_rule import ScoringRule
 from app.models.yahoo_candidate import YahooAuctionCandidate
 from app.schemas.candidates import CandidateBulkScoreRequest, CandidateRead
 from app.schemas.scores import RecommendationScoreRead
@@ -87,7 +88,8 @@ def list_candidates(
 
 
 def upsert_recommendation_score(db: Session, candidate: YahooAuctionCandidate) -> RecommendationScore:
-    computed = compute_recommendation(candidate)
+    scoring_rules = db.query(ScoringRule).filter(ScoringRule.enabled.is_(True)).all()
+    computed = compute_recommendation(candidate, scoring_rules=scoring_rules)
 
     score = (
         db.query(RecommendationScore)
