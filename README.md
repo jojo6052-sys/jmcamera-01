@@ -75,6 +75,9 @@ docker compose exec backend alembic upgrade head
 ## システムマニュアル
 このシステムの目的、全体構成、大まかな使い方、Phase 1 MVPの見方、将来ロードマップは [`docs/system-manual.md`](docs/system-manual.md) にまとめています。Frontendにも `System Manual` タブを追加しているため、ブラウザ上で同じ流れを確認できます。
 
+## 進捗ロードマップ
+未完成部分と進捗の見える化は [`docs/progress.md`](docs/progress.md) にまとめています。Frontendの `Progress` タブでも、ローカルMVP、本番設定、外部データ取得、推薦ロジック、CI/運用の進捗と残タスクを確認できます。
+
 ## Phase 1 MVPに含まれる主要機能
 - CSVインポートとProduct Analytics
 - Search Keywords管理とYahoo候補取得
