@@ -56,6 +56,9 @@ FrontendはVite 8系のため Node.js 20.19以上（または22.12以上）が�
 docker compose ps
 ```
 
+## ポート住み分け
+この仕入れシステムはFrontendを `http://localhost:5173` に固定します。別プロジェクトのランディングページは `http://localhost:5174` を使う前提で住み分けます。`.env` の `FRONTEND_PORT=5173` を変更しないでください。Viteは `strictPort` を有効にしているため、5173が他アプリに使われている場合は別ポートへ自動退避せず起動に失敗します。
+
 ## 動作確認
 - Backend health: `http://localhost:8001/health`
 - API health: `http://localhost:8001/api/health`
