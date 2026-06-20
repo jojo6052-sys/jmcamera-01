@@ -56,6 +56,9 @@ FrontendはVite 8系のため Node.js 20.19以上（または22.12以上）が�
 docker compose ps
 ```
 
+## ポート住み分け
+この仕入れシステムはFrontendを `http://localhost:5173` に固定します。別プロジェクトのランディングページは `http://localhost:5174` を使う前提で住み分けます。`.env` の `FRONTEND_PORT=5173` を変更しないでください。Viteは `strictPort` を有効にしているため、5173が他アプリに使われている場合は別ポートへ自動退避せず起動に失敗します。
+
 ## 動作確認
 - Backend health: `http://localhost:8001/health`
 - API health: `http://localhost:8001/api/health`
@@ -194,6 +197,9 @@ YAHOO_REQUEST_TIMEOUT_SECONDS=10
 ```
 
 `live` モードでも取得失敗・ページ構造変更・アクセス制限時はfallback候補を返し、API全体を落とさない設計です。過剰アクセスを避けるため、ランダム待機とtimeoutを設定値で制御します。
+
+## 推薦スコア学習・補正
+推薦スコアは販売写真、説明欄、販売者評価、手動補正ルールを考慮します。ユーザー知見をあとから追加する `scoring_rules` APIの使い方は [`docs/scoring-learning.md`](docs/scoring-learning.md) を参照してください。
 
 ## Phase 1 - PR4 追加機能
 - `POST /api/candidates/{id}/feedback`: 仕入れ判断フィードバック保存

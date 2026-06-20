@@ -6,6 +6,7 @@ from app.routers.ebay_compliance import router as ebay_compliance_router
 from app.routers.imports import router as imports_router
 from app.routers.phase import router as phase_router
 from app.routers.search_keywords import router as search_keywords_router
+from app.routers.scoring_rules import router as scoring_rules_router
 from app.routers.yahoo import router as yahoo_router
 
-__all__ = ['feedbacks_router', 'analytics_router', 'imports_router', 'phase_router', 'search_keywords_router', 'yahoo_router', 'candidates_router', 'competitors_router', 'ebay_compliance_router']
+__all__ = ['feedbacks_router', 'analytics_router', 'imports_router', 'phase_router', 'search_keywords_router', 'scoring_rules_router', 'yahoo_router', 'candidates_router', 'competitors_router', 'ebay_compliance_router']
