@@ -2,6 +2,7 @@ from app.models.feedback import Feedback
 from app.models.competitor import CompetitorItem, CompetitorSeller
 from app.models.product import Product
 from app.models.recommendation_score import RecommendationScore
+from app.models.scoring_rule import ScoringRule
 from app.models.search_keyword import SearchKeyword
 from app.models.seller import Seller
 from app.models.yahoo_candidate import YahooAuctionCandidate
@@ -15,4 +16,5 @@ __all__ = [
     "CompetitorSeller",
     "CompetitorItem",
     "SearchKeyword",
+    "ScoringRule",
 ]

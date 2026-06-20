@@ -28,7 +28,7 @@ fi
 
 if command -v rg >/dev/null 2>&1; then
   conflict_pattern="$(printf '%s|%s|%s' '<<<''<<<<' '===''====' '>>>''>>>>')"
-  if rg -n "$conflict_pattern" README.md scripts backend frontend docker-compose.yml .env.example; then
+  if rg -n "$conflict_pattern" README.md docs scripts backend frontend docker-compose.yml .env.example; then
     echo "Conflict markers found" >&2
     exit 1
   fi
@@ -41,9 +41,15 @@ fi
 import ast
 from pathlib import Path
 
-source_path = Path("scripts/smoke_check.py")
-ast.parse(source_path.read_text(), filename=str(source_path))
+for source_path in sorted(Path("scripts").glob("*.py")):
+    ast.parse(source_path.read_text(), filename=str(source_path))
 PY
+
+for shell_script in scripts/*.sh; do
+  sh -n "$shell_script"
+done
+
+"$PYTHON_BIN" scripts/check_port_assignment.py
 
 cd "$ROOT_DIR/backend"
 venv_needs_rebuild=true
@@ -55,17 +61,64 @@ then
   venv_needs_rebuild=false
 fi
 
+requirements_hash="$($PYTHON_BIN - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+
+digest = sha256()
+for name in ("requirements.txt", "requirements-dev.txt"):
+    path = Path(name)
+    digest.update(name.encode())
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+)"
+requirements_stamp=".venv/.requirements.sha256"
+deps_need_install=true
+if [ "$venv_needs_rebuild" = false ] && [ -f "$requirements_stamp" ] && [ "$(cat "$requirements_stamp")" = "$requirements_hash" ]; then
+  deps_need_install=false
+fi
+
 if [ "$venv_needs_rebuild" = true ]; then
   rm -rf .venv
   "$PYTHON_BIN" -m venv .venv
+fi
+
+if [ "$deps_need_install" = true ]; then
   .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+  printf '%s\n' "$requirements_hash" > "$requirements_stamp"
 fi
 DATABASE_URL=sqlite:///./migration_check.db .venv/bin/alembic upgrade head
 .venv/bin/python -m compileall app
 PYTHONPATH=. .venv/bin/pytest -q
 
 cd "$ROOT_DIR/frontend"
-npm install
+frontend_deps_hash="$($PYTHON_BIN - <<'PY'
+from hashlib import sha256
+from pathlib import Path
+
+digest = sha256()
+for name in ("package.json", "package-lock.json"):
+    path = Path(name)
+    digest.update(name.encode())
+    digest.update(b"\0")
+    digest.update(path.read_bytes())
+    digest.update(b"\0")
+print(digest.hexdigest())
+PY
+)"
+frontend_deps_stamp="node_modules/.package-lock.sha256"
+frontend_deps_need_install=true
+if [ -d node_modules ] && [ -f "$frontend_deps_stamp" ] && [ "$(cat "$frontend_deps_stamp")" = "$frontend_deps_hash" ]; then
+  frontend_deps_need_install=false
+fi
+
+if [ "$frontend_deps_need_install" = true ]; then
+  npm install
+  printf '%s\n' "$frontend_deps_hash" > "$frontend_deps_stamp"
+fi
 npm run build
 
 cd "$ROOT_DIR"

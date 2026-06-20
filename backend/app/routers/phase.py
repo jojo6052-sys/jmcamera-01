@@ -18,6 +18,11 @@ router = APIRouter(prefix=f"{settings.api_prefix}/phase", tags=["phase"])
 @router.get("/status", response_model=PhaseStatusRead)
 def get_phase_status(db: Session = Depends(get_db)) -> PhaseStatusRead:
     db.execute(text("SELECT 1"))
+    ebay_api_credentials_configured = bool(settings.ebay_client_id.strip() and settings.ebay_client_secret.strip())
+    ebay_compliance_configured = bool(
+        settings.ebay_marketplace_deletion_verification_token.strip()
+        and settings.ebay_marketplace_deletion_endpoint_url.strip()
+    )
     metrics = [
         PhaseMetric(label="products", count=_count(db, Product)),
         PhaseMetric(label="search_keywords", count=_count(db, SearchKeyword)),
@@ -35,21 +40,30 @@ def get_phase_status(db: Session = Depends(get_db)) -> PhaseStatusRead:
         "yahoo_candidates_ready": True,
         "recommendation_scoring_ready": True,
         "competitor_research_ready": True,
-        "ebay_compliance_endpoint_ready": bool(
-            settings.ebay_marketplace_deletion_verification_token.strip()
-            and settings.ebay_marketplace_deletion_endpoint_url.strip()
-        ),
+        "ebay_compliance_endpoint_ready": ebay_compliance_configured,
     }
+    core_ready_checks = {key: value for key, value in ready_checks.items() if key != "ebay_compliance_endpoint_ready"}
+    core_ready = all(core_ready_checks.values())
+    pending_configuration = []
+    if not ebay_api_credentials_configured:
+        pending_configuration.append("ebay_api_credentials")
+    if not ebay_compliance_configured:
+        pending_configuration.append("ebay_compliance_endpoint")
+
+    phase_status = "ready" if core_ready and not pending_configuration else "ready_with_configuration_pending"
+
     return PhaseStatusRead(
         phase="MVP Phase 1",
-        status="ready" if all(ready_checks.values()) else "ready_with_configuration_pending",
+        status=phase_status,
+        core_ready=core_ready,
         database="ok",
         metrics=metrics,
         ready_checks=ready_checks,
         configuration=PhaseConfiguration(
-            ebay_api_credentials_configured=bool(settings.ebay_client_id.strip() and settings.ebay_client_secret.strip()),
-            ebay_compliance_configured=ready_checks["ebay_compliance_endpoint_ready"],
+            ebay_api_credentials_configured=ebay_api_credentials_configured,
+            ebay_compliance_configured=ebay_compliance_configured,
         ),
+        pending_configuration=pending_configuration,
     )
 
 
