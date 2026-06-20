@@ -29,8 +29,8 @@ def main() -> int:
     package_json = read("frontend/package.json")
 
     require(
-        re.search(r"^FRONTEND_PORT=5173$", env_example, re.MULTILINE) is not None,
-        ".env.example must keep FRONTEND_PORT=5173 for the sourcing system.",
+        "FRONTEND_PORT=" not in env_example,
+        ".env.example must not expose FRONTEND_PORT; the sourcing system is hard-pinned to 5173 in docker-compose.yml.",
         errors,
     )
     require(
@@ -39,8 +39,8 @@ def main() -> int:
         errors,
     )
     require(
-        '"${FRONTEND_PORT:-5173}:5173"' in compose,
-        'docker-compose.yml frontend ports must map "${FRONTEND_PORT:-5173}:5173".',
+        '"5173:5173"' in compose,
+        'docker-compose.yml frontend ports must be hard-pinned to "5173:5173".',
         errors,
     )
     require(
@@ -70,7 +70,7 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 1
 
-    print(f"Port assignment OK: sourcing frontend={EXPECTED_FRONTEND_PORT}, landing page reserved={RESERVED_LANDING_PORT}")
+    print(f"Port assignment OK: sourcing frontend hard-pinned={EXPECTED_FRONTEND_PORT}, landing page reserved={RESERVED_LANDING_PORT}")
     return 0
 
 

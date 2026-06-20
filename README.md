@@ -57,7 +57,7 @@ docker compose ps
 ```
 
 ## ポート住み分け
-この仕入れシステムはFrontendを `http://localhost:5173` に固定します。別プロジェクトのランディングページは `http://localhost:5174` を使う前提で住み分けます。`.env` の `FRONTEND_PORT=5173` を変更しないでください。Viteは `strictPort` を有効にしているため、5173が他アプリに使われている場合は別ポートへ自動退避せず起動に失敗します。ポート設定の静的チェックは `scripts/check_port_assignment.py` で実行できます。
+この仕入れシステムはFrontendを `http://localhost:5173` に固定します。別プロジェクトのランディングページは `http://localhost:5174` を使う前提で住み分けます。`docker-compose.yml` で `5173:5173` に固定しているため、`.env` では変更できません。Viteは `strictPort` を有効にしているため、5173が他アプリに使われている場合は別ポートへ自動退避せず起動に失敗します。ポート設定の静的チェックは `scripts/check_port_assignment.py` で実行できます。5173にもランディングページが出る場合は、別プロジェクトのコンテナが5173を占有している可能性が高いため、ランディングページ側を停止してからこのリポジトリで `docker compose up -d --build` を実行してください。
 
 ## 動作確認
 - Backend health: `http://localhost:8001/health`

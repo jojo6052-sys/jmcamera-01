@@ -24,7 +24,7 @@ JM Camera Sourcing AI は、カメラ商品の仕入れ判断を支援するた�
 - JM Camera Sourcing AI frontend: `http://localhost:5173`
 - 別プロジェクトのランディングページ: `http://localhost:5174`
 
-仕入れシステム側は `FRONTEND_PORT=5173` とVite `strictPort` で5173に固定しています。5173が使われている場合は自動的に5174へずれず、競合として検知します。
+仕入れシステム側はDocker Composeの `5173:5173` とVite `strictPort` で5173に固定しています。5173が使われている場合は自動的に5174へずれず、競合として検知します。
 
 ## 大まかな使い方
 
