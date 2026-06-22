@@ -65,3 +65,17 @@ python3 -m http.server 5174 --directory landing
 ```
 
 Then open <http://localhost:5174>.
+
+## Verify port separation
+
+After starting the stack, confirm that each port serves the expected page:
+
+```bash
+python scripts/check_frontend_identity.py --url http://localhost:5173/ --expect sourcing
+python scripts/check_frontend_identity.py --url http://localhost:5174/ --expect landing
+```
+
+Expected:
+
+- `http://localhost:5173` serves `JM Camera Sourcing AI`
+- `http://localhost:5174` serves `Tokyo Serene Days`
