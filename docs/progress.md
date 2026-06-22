@@ -7,7 +7,7 @@
 | Phase 1 Local MVP | 85% | 進行中 | CSVインポート、分析、検索KW、Yahoo fallback候補、推薦、フィードバック、競合調査、System Manual | 実データでの継続UX確認、Phase verification report定期保存、細かい導線改善 |
 | Production Configuration | 35% | 外部待ち | Phase Status表示、eBay削除通知endpoint、Docker/agent接続ガイド | eBay Production keyset、外部公開HTTPS endpoint、verification token運用、本番secret管理 |
 | External Data Acquisition | 45% | 進行中 | Yahoo live/fallback、eBay live/disabled、delay/timeout、保存HTMLインポート | Yahoo許可済み/安定導線、eBay Sold履歴の公式API/代替導線、レート制御強化、取得失敗時の観測性 |
-| Scoring Intelligence | 40% | 計画中 | 推薦スコア再計算、S/A/B/C/NG、判断保存、CSV出力 | 返品・修理・クレーム履歴の重み付け、見送り理由分析、利益予測、フィードバック反映 |
+| Scoring Intelligence | 55% | 進行中 | 推薦スコア再計算、S/A/B/C/NG、判断保存、CSV出力、説明欄/写真/販売者評価リスク、手動補正ルールAPI | 実画像解析、仕入れ実績からの自動ルール候補、見送り理由分析、利益予測、画面からの補正ルール管理 |
 | CI / Operations | 50% | 進行中 | dev_check、smoke_check、phase1_verify、Markdown report、Docker access check | GitHub Actions等での自動実行、Compose込みE2E、定期レポート、デプロイ先health監視 |
 
 ## 次に進める優先順

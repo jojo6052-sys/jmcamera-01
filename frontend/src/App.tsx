@@ -9,8 +9,51 @@ import ProgressRoadmapPage from './pages/ProgressRoadmapPage'
 
 type TabKey = 'status' | 'guide' | 'progress' | 'analytics' | 'recommendations' | 'keywords' | 'competitors'
 
-export default function App() {
-  const [tab, setTab] = useState<TabKey>('status')
+const galleryItems = [
+  {
+    src: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=900&q=80',
+    alt: '夕暮れの東京の路地',
+    caption: '夕暮れ、音が少し遠のく路地。',
+  },
+  {
+    src: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=80',
+    alt: '木製テーブルの上のクラシックカメラ',
+    caption: '古いカメラが教えてくれる、待つ楽しみ。',
+  },
+  {
+    src: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=900&q=80',
+    alt: '静かな日本の街並み',
+    caption: '観光地のすぐ隣にある、静かな東京。',
+  },
+]
+
+const voices = [
+  '朝のコーヒーを飲みながら読むと、週末の過ごし方が少し丁寧になります。東京に住んでいても知らない場所が多いと気づきました。',
+  '宿泊先から歩ける小さな路地の紹介が心に残りました。旅程を詰め込まない旅の良さを思い出せます。',
+  'フィルムカメラの話が懐かしく、写真を撮る時間そのものを楽しめるようになりました。',
+]
+
+function NewsletterForm({ id }: { id: string }) {
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmedEmail = email.trim()
+
+    if (!trimmedEmail) {
+      setMessage('メールアドレスを入力してください。')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setMessage('有効なメールアドレスを入力してください。')
+      return
+    }
+
+    setMessage('ご登録ありがとうございます。次回のレターをお楽しみに。')
+    setEmail('')
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 p-8 space-y-4">

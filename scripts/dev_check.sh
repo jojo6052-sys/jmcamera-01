@@ -28,7 +28,7 @@ fi
 
 if command -v rg >/dev/null 2>&1; then
   conflict_pattern="$(printf '%s|%s|%s' '<<<''<<<<' '===''====' '>>>''>>>>')"
-  if rg -n "$conflict_pattern" README.md scripts backend frontend docker-compose.yml .env.example; then
+  if rg -n "$conflict_pattern" README.md docs scripts backend frontend docker-compose.yml .env.example; then
     echo "Conflict markers found" >&2
     exit 1
   fi
@@ -48,6 +48,8 @@ PY
 for shell_script in scripts/*.sh; do
   sh -n "$shell_script"
 done
+
+"$PYTHON_BIN" scripts/check_port_assignment.py
 
 cd "$ROOT_DIR/backend"
 venv_needs_rebuild=true
