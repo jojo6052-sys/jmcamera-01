@@ -9,44 +9,53 @@ import ProgressRoadmapPage from './pages/ProgressRoadmapPage'
 
 type TabKey = 'status' | 'guide' | 'progress' | 'analytics' | 'recommendations' | 'keywords' | 'competitors'
 
+const tabs: { key: TabKey; label: string; description: string }[] = [
+  { key: 'status', label: 'Phase Status', description: 'MVPの準備状況' },
+  { key: 'guide', label: 'System Manual', description: '運用ガイド' },
+  { key: 'progress', label: 'Progress', description: '進捗ロードマップ' },
+  { key: 'analytics', label: 'Product Analytics', description: '商品分析' },
+  { key: 'recommendations', label: 'Recommendations', description: '推薦スコア' },
+  { key: 'keywords', label: 'Search Keywords', description: '検索キーワード' },
+  { key: 'competitors', label: 'Competitor Research', description: '競合調査' },
+]
+
 export default function App() {
   const [tab, setTab] = useState<TabKey>('status')
+  const activeTab = tabs.find((item) => item.key === tab) ?? tabs[0]
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8 space-y-4">
-      <h1 className="text-3xl font-bold">JM Camera Sourcing AI</h1>
+    <div className="app-shell">
+      <header className="app-hero">
+        <div>
+          <p className="app-kicker">JM Camera Sourcing AI</p>
+          <h1 className="app-title">仕入れ判断ダッシュボード</h1>
+          <p className="app-lead">Phase 1 MVPの状態確認、商品分析、候補取得、推薦判断をひとつの画面から確認できます。</p>
+        </div>
+        <div className="app-status-card" aria-label="現在の表示タブ">
+          <span>Current View</span>
+          <strong>{activeTab.label}</strong>
+          <small>{activeTab.description}</small>
+        </div>
+      </header>
 
-      <div className="flex flex-wrap gap-2">
-        <button className={`px-3 py-2 rounded ${tab === 'status' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('status')}>
-          Phase Status
-        </button>
-        <button className={`px-3 py-2 rounded ${tab === 'guide' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('guide')}>
-          System Manual
-        </button>
-        <button className={`px-3 py-2 rounded ${tab === 'progress' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('progress')}>
-          Progress
-        </button>
-        <button className={`px-3 py-2 rounded ${tab === 'analytics' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('analytics')}>
-          Product Analytics
-        </button>
-        <button className={`px-3 py-2 rounded ${tab === 'recommendations' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('recommendations')}>
-          Recommendations
-        </button>
-        <button className={`px-3 py-2 rounded ${tab === 'keywords' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('keywords')}>
-          Search Keywords
-        </button>
-        <button className={`px-3 py-2 rounded ${tab === 'competitors' ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={() => setTab('competitors')}>
-          Competitor Research
-        </button>
-      </div>
+      <nav className="tab-nav" aria-label="主要機能">
+        {tabs.map((item) => (
+          <button className={`tab-button ${tab === item.key ? 'is-active' : ''}`} key={item.key} onClick={() => setTab(item.key)} type="button">
+            <span>{item.label}</span>
+            <small>{item.description}</small>
+          </button>
+        ))}
+      </nav>
 
-      {tab === 'status' && <PhaseStatusPage onOpenGuide={() => setTab('guide')} />}
-      {tab === 'guide' && <SystemGuidePage />}
-      {tab === 'progress' && <ProgressRoadmapPage />}
-      {tab === 'analytics' && <ProductAnalyticsPage />}
-      {tab === 'recommendations' && <RecommendationsPage />}
-      {tab === 'keywords' && <SearchKeywordsPage />}
-      {tab === 'competitors' && <CompetitorResearchPage />}
+      <main className="app-content">
+        {tab === 'status' && <PhaseStatusPage onOpenGuide={() => setTab('guide')} />}
+        {tab === 'guide' && <SystemGuidePage />}
+        {tab === 'progress' && <ProgressRoadmapPage />}
+        {tab === 'analytics' && <ProductAnalyticsPage />}
+        {tab === 'recommendations' && <RecommendationsPage />}
+        {tab === 'keywords' && <SearchKeywordsPage />}
+        {tab === 'competitors' && <CompetitorResearchPage />}
+      </main>
     </div>
   )
 }
